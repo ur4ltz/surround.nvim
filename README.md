@@ -13,8 +13,8 @@ feature requests.
 
 #### Insert Mode
 
-- <c-s><char> will insert both pairs in insert mode.
-- <c-s><char><c-s> will insert both pairs on newlines insert mode.
+- `<c-s><char>` will insert both pairs in insert mode.
+- `<c-s><char><c-s>` will insert both pairs on newlines insert mode.
 ### IDK I was bored
 
 1. Cycle surrounding quotes type. (stq)
