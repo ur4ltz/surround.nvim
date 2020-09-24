@@ -17,8 +17,8 @@ feature requests.
 - `<c-s><char><c-s>` will insert both pairs on newlines insert mode.
 ### IDK I was bored
 
-1. Cycle surrounding quotes type. (stq)
-1. Cycle surrounding brackets type. (stb)
+1. Cycle surrounding quotes type. (`stq`)
+1. Cycle surrounding brackets type. (`stb`)
 1. Use `<char> == f` for adding, replacing, deleting functions.
 
 ## Installation
