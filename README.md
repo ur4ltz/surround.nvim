@@ -6,10 +6,15 @@ feature requests.
 ## Features
 ### Key mappings
 
+#### Normal Mode
 1. Provides key mapping to add surrounding characters.( visually select then press `s<char>` )
 2. Provides key mapping to replace surrounding characters.( `sr<from><to>` )
 3. Provides key mapping to delete surrounding characters.( `sd<char>` )
 
+#### Insert Mode
+
+- <c-s><char> will insert both pairs in insert mode.
+- <c-s><char><c-s> will insert both pairs on newlines insert mode.
 ### IDK I was bored
 
 1. Cycle surrounding quotes type. (stq)
@@ -28,7 +33,7 @@ feature requests.
 ### Format: for **vimscript** `let g:surround_<option>` and for **lua** `vim.g.surround_<option>`
 
 - pairs: dictionary or lua table of form `{ nestable: {{},...}, linear: {{},....} }` where linear is an array of arrays which contain non nestable pairs of surrounding characters first opening and second closing like ", ' and nestable is an array of arrays which contain nestable pairs of surrounding characters like (, {, [. `(default: { nestable = { {"(", ")"}, {"[", "]"}, {"{", "}"} }, linear = { {"'", "'"}, {'"', '"'} } })`
-- context\_offset: number of lines to look for above and below the current line while searching for nestable pairs. `(default: 50)`
+- context\_offset: number of lines to look for above and below the current line while searching for nestable pairs. `(default: 100)`
 - load_\_autogroups: whether to load inbuilt autogroups or not. `(default: false)`
 - load_\_keymaps: whether to load inbuilt keymaps or not. `(default: true)`
 - quotes: an array of items to be considered as quotes while cycling through them. `(default: ["'", '"']`
