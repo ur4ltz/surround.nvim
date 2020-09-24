@@ -142,7 +142,7 @@ local function get_surrounding_function(buffer, cursor_position, includes)
     end
   end
   if (function_start_index and opening_index and closing_index) then
-    return {function_start_index, opening_index, closing_index}
+    return {opening_index, closing_index, function_start_index}
   else
     return nil
   end

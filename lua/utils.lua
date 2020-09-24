@@ -79,19 +79,19 @@ function string.split(inputstr, sep)
   return t
 end
 
-function string.insert(string, index, sub_str)
-  return string:sub(1, index - 1) .. sub_str .. string:sub(index, #string + 1)
+function string.insert(inputstr, index, sub_str)
+  return inputstr:sub(1, index - 1) .. sub_str .. inputstr:sub(index, #inputstr + 1)
 end
 
-function string.remove(string, from, to)
+function string.remove(inputstr, from, to)
   if (to == nil) then
     to = from + 1
   end
-  return string:sub(1, from - 1) .. string:sub(to, #string)
+  return inputstr:sub(1, from - 1) .. inputstr:sub(to, #inputstr)
 end
 
-function string.set(string, index, sub_str)
-  return string:sub(1, index - 1) .. sub_str .. string:sub(index + 1, #string)
+function string.set(inputstr, index, sub_str)
+  return inputstr:sub(1, index - 1) .. sub_str .. inputstr:sub(index + 1, #inputstr)
 end
 
 local function get_visual_pos()

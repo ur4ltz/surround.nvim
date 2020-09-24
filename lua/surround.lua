@@ -6,6 +6,7 @@ local utils = require "utils"
 
 local OPENING = 1
 local CLOSING = 2
+local FUNCTION = 3
 local LINE = 1
 local COLUMN = 2
 
@@ -31,6 +32,11 @@ local function surround_add(char)
     end
   end
 
+  local space = ""
+  if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[CLOSING] then
+    space = " "
+  end
+
   -- Add surrounding characters
   if (char == "f") then
     -- Handle Functions
@@ -40,15 +46,15 @@ local function surround_add(char)
       if #context == 1 then
         -- Handle single line
         local line = context[1]
-        line = string.insert(line, start_col, func_name .. "(")
-        line = string.insert(line, end_col + #func_name + 1, ")")
+        line = string.insert(line, end_col, space .. ")")
+        line = string.insert(line, start_col, func_name .. "(" .. space)
         context[1] = line
       else
         -- Handle multiple lines
         local first_line = context[1]
         local last_line = context[#context]
-        first_line = string.insert(first_line, start_col, func_name .. "(")
-        last_line = string.insert(last_line, end_col + 1, ")")
+        last_line = string.insert(last_line, end_col, space .. ")")
+        first_line = string.insert(first_line, start_col, func_name .. "(" .. space)
         context[1] = first_line
         context[#context] = last_line
       end
@@ -59,15 +65,15 @@ local function surround_add(char)
       if #context == 1 then
         -- Handle single line
         local line = context[1]
-        line = string.insert(line, start_col, char_pairs[1])
-        line = string.insert(line, end_col + 1, char_pairs[2])
+        line = string.insert(line, end_col, space .. char_pairs[CLOSING])
+        line = string.insert(line, start_col, char_pairs[OPENING] .. space)
         context[1] = line
       else
         -- Handle multiple lines
         local first_line = context[1]
         local last_line = context[#context]
-        first_line = string.insert(first_line, start_col, char_pairs[1])
-        last_line = string.insert(last_line, end_col + 1, char_pairs[2])
+        last_line = string.insert(last_line, end_col, space .. char_pairs[CLOSING])
+        first_line = string.insert(first_line, start_col, char_pairs[OPENING] .. space)
         context[1] = first_line
         context[#context] = last_line
       end
@@ -84,8 +90,8 @@ local function surround_add(char)
             break
           end
         end
-        line = string.insert(line, index, char_pairs[1])
-        line = string.insert(line, #line + 1, char_pairs[2])
+        line = string.insert(line, #line, space .. char_pairs[CLOSING])
+        line = string.insert(line, index, char_pairs[OPENING] .. space)
         context[1] = line
       else
         -- Handle multiple lines
@@ -103,8 +109,8 @@ local function surround_add(char)
         end
 
         -- Insert the characters
-        first_line = string.insert(first_line, index, char_pairs[1])
-        last_line = string.insert(last_line, #last_line + 1, char_pairs[2])
+        last_line = string.insert(last_line, #last_line, space .. char_pairs[CLOSING])
+        first_line = string.insert(first_line, index, char_pairs[OPENING] .. space)
         context[1] = first_line
         context[#context] = last_line
       end
@@ -139,7 +145,7 @@ local function surround_delete(char)
   if table.contains(vim.tbl_flatten(surround_pairs.linear), char) then
     start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(0)
   elseif char == "f" then
-    start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(0)
+    start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
   else
     start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
   end
@@ -163,17 +169,16 @@ local function surround_delete(char)
 
   if (char == "f") then
     -- Handle functions
+    context[indexes[CLOSING][LINE]] = string.remove(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN])
     context[indexes[OPENING][LINE]] =
-      string.remove(context[indexes[OPENING][LINE]], indexes[1][COLUMN], indexes[2][COLUMN] + 1)
-    context[indexes[3][LINE]] =
-      string.remove(context[indexes[3][LINE]], indexes[3][COLUMN] - (indexes[2][COLUMN] - indexes[1][COLUMN]) - 1)
+      string.remove(context[indexes[OPENING][LINE]], indexes[FUNCTION][COLUMN], indexes[OPENING][COLUMN] + 1)
   else
     -- local ns_id =
     -- vim.api.nvim_buf_add_highlight(0, vim.api.nvim_create_namespace("surround.nvim"), "SurroundFeedback", 1, 1, -1)
 
     -- Remove surrounding character  matches
+    context[indexes[CLOSING][LINE]] = string.remove(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN])
     context[indexes[OPENING][LINE]] = string.remove(context[indexes[OPENING][LINE]], indexes[OPENING][COLUMN])
-    context[indexes[CLOSING][LINE]] = string.remove(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN] - 1)
   end
 
   -- Replace Buffer
@@ -189,23 +194,33 @@ local function surround_delete(char)
   vim.g.surround_last_cmd = {"surround_delete", {char}}
 end
 
-local function surround_replace(char_1, char_2, is_toggle, start_line, end_line, cursor_index, context)
-  local cursor_position = vim.api.nvim_win_get_cursor(0)
+local function surround_replace(
+  char_1,
+  char_2,
+  is_toggle,
+  start_line,
+  end_line,
+  top_offset,
+  cursor_position_relative,
+  context)
   local surround_pairs = vim.g.surround_pairs
-  local top_offset = 0
 
-  -- Get context
-  if table.contains(vim.tbl_flatten(surround_pairs.linear), char_1) then
-    start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(0)
-  elseif char_1 == "f" then
-    start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(0)
-  else
-    start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
+  if not cursor_position_relative or context or start_line or end_line or top_offset then
+    top_offset = 0
+    local cursor_position = vim.api.nvim_win_get_cursor(0)
+    -- Get context
+    if table.contains(vim.tbl_flatten(surround_pairs.linear), char_1) then
+      start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(0)
+    elseif char_1 == "f" then
+      start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
+    else
+      start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
+    end
+    context = vim.api.nvim_call_function("getline", {start_line, end_line})
+    cursor_position_relative = cursor_position
+    cursor_position_relative[LINE] = cursor_position[LINE] - top_offset
+    cursor_position_relative[COLUMN] = cursor_position[COLUMN] + 1 -- vim indexes columns at 0
   end
-  context = vim.api.nvim_call_function("getline", {start_line, end_line})
-  local cursor_position_relative = cursor_position
-  cursor_position_relative[LINE] = cursor_position[LINE] - top_offset
-  cursor_position_relative[COLUMN] = cursor_position[COLUMN] + 1 -- vim indexes columns at 0
 
   -- Replace surrounding pairs
   if char_1 == "f" and char_2 == "f" then
@@ -220,12 +235,14 @@ local function surround_replace(char_1, char_2, is_toggle, start_line, end_line,
     -- Get new funcname
     local func_name = utils.user_input("funcname: ")
 
-    -- Replace functions
-    context[indexes[OPENING][LINE]] =
-      string.remove(context[indexes[OPENING][LINE]], indexes[1][COLUMN], indexes[2][COLUMN])
-    context[indexes[OPENING][LINE]] = string.insert(context[indexes[OPENING][LINE]], indexes[1][COLUMN], func_name)
+    -- Delete old function
+    context[indexes[FUNCTION][LINE]] =
+      string.remove(context[indexes[FUNCTION][LINE]], indexes[1][COLUMN], indexes[2][COLUMN])
+
+    -- Add new function
+    context[indexes[FUNCTION][LINE]] = string.insert(context[indexes[FUNCTION][LINE]], indexes[1][COLUMN], func_name)
   elseif char_1 == "f" then
-    local indexes = parser.get_surround_pair(context, cursor_position_relative, char_1, {"_"})
+    local indexes = parser.get_surround_pair(context, cursor_position_relative, char_1, {"_", "."})
 
     -- Bail out if no surrounding function found.
     if not indexes then
@@ -244,9 +261,12 @@ local function surround_replace(char_1, char_2, is_toggle, start_line, end_line,
     end
 
     -- Replace surrounding brackets with char_2 and remove function
-    context = string.set(context, indexes[2], char_2_pairs[1])
-    context = string.set(context, indexes[3], char_2_pairs[2])
-    context = string.remove(context, indexes[1], indexes[2])
+    context[indexes[OPENING][LINE]] =
+      string.set(context[indexes[OPENING][LINE]], indexes[OPENING][COLUMN], char_2_pairs[1])
+    context[indexes[CLOSING][LINE]] =
+      string.set(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN], char_2_pairs[2])
+    context[indexes[FUNCTION][LINE]] =
+      string.remove(context[indexes[FUNCTION][LINE]], indexes[FUNCTION][COLUMN], indexes[OPENING][COLUMN])
   elseif char_2 == "f" then
     local indexes = parser.get_surround_pair(context, cursor_position_relative, char_1)
 
@@ -316,9 +336,27 @@ local function toggle_quotes()
     index = parser.get_surround_pair(context, cursor_position_relative, pair)
     if index then
       if i == #_pairs then
-        surround_replace(_pairs[i], _pairs[1], true, start_line, end_line, cursor_position_relative, context)
+        surround_replace(
+          _pairs[i],
+          _pairs[1],
+          true,
+          start_line,
+          end_line,
+          top_offset,
+          cursor_position_relative,
+          context
+        )
       else
-        surround_replace(_pairs[i], _pairs[i + 1], true, start_line, end_line, cursor_position_relative, context)
+        surround_replace(
+          _pairs[i],
+          _pairs[i + 1],
+          true,
+          start_line,
+          end_line,
+          top_offset,
+          cursor_position_relative,
+          context
+        )
       end
       vim.g.surround_last_cmd = {"toggle_quotes", {}}
       return
@@ -361,9 +399,27 @@ local function toggle_brackets()
   for i, val in ipairs(indexes) do
     if index == val then
       if i < #_pairs then
-        surround_replace(_pairs[i], _pairs[i + 1], true, start_line, end_line, cursor_position_relative, context)
+        surround_replace(
+          _pairs[i],
+          _pairs[i + 1],
+          true,
+          start_line,
+          end_line,
+          top_offset,
+          cursor_position_relative,
+          context
+        )
       else
-        surround_replace(_pairs[i], _pairs[1], true, start_line, end_line, cursor_position_relative, context)
+        surround_replace(
+          _pairs[i],
+          _pairs[1],
+          true,
+          start_line,
+          end_line,
+          top_offset,
+          cursor_position_relative,
+          context
+        )
       end
       vim.g.surround_last_cmd = {"toggle_brackets", {}}
       return
@@ -391,66 +447,63 @@ local function set_keymaps()
   }
   local all_pairs = table.merge(vim.g.surround_pairs.nestable, vim.g.surround_pairs.linear)
   for _, pair in ipairs(all_pairs) do
-    map_keys[pair[1]] = pair[2]
+    map_keys[pair[1]] = pair[1]
     map_keys[pair[2]] = pair[2]
   end
+
   local keys = {}
   -- Special Maps
+  -- Cycle surrounding quotes
   table.insert(keys, {"n", "stq", "<cmd>lua surround.toggle_quotes()<cr>", {noremap = true}})
+  -- Cycle surrounding brackets
   table.insert(keys, {"n", "stb", "<cmd>lua surround.toggle_brackets()<cr>", {noremap = true}})
+  -- Cycle surrounding brackets
   table.insert(keys, {"n", "stB", "<cmd>lua surround.toggle_brackets()<cr>", {noremap = true}})
+  -- Repeat Last surround command
   table.insert(keys, {"n", "ss", "<cmd>lua surround.repeat_last()<cr>", {noremap = true}})
-  -- Surround Add
-  for key, val in pairs(map_keys) do
-    -- Handle different quotes
-    if key == '"' then
-      table.insert(keys, {"v", "s" .. key, "gv<cmd>lua surround.surround_add('" .. val .. "')<cr>", {noremap = true}})
-    else
-      table.insert(keys, {"v", "s" .. key, 'gv<cmd>lua surround.surround_add("' .. val .. '")<cr>', {noremap = true}})
-    end
+
+  -- Insert Mode Ctrl-S mappings
+  for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable, vim.g.surround_pairs.linear)) do
+    table.insert(keys, {"i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>", {noremap = true}})
+    table.insert(
+      keys,
+      {"i", "<c-s>" .. pair[OPENING] .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>", {noremap = true}}
+    )
+    table.insert(
+      keys,
+      {"i", "<c-s>" .. pair[OPENING] .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O", {noremap = true}}
+    )
+  end
+
+  -- Main Maps
+  for key_1, val_1 in pairs(map_keys) do
+    -- Surround Add
+    table.insert(
+      keys,
+      {"v", "s" .. key_1, "gv<cmd>lua surround.surround_add(" .. utils.quote(val_1) .. ")<cr>", {noremap = true}}
+    )
+
     -- Surround Delete
-    -- Handle different quotes
-    if key == '"' then
-      table.insert(keys, {"n", "sd" .. key, "<cmd>lua surround.surround_delete('" .. val .. "')<cr>", {noremap = true}})
-    else
-      table.insert(keys, {"n", "sd" .. key, '<cmd>lua surround.surround_delete("' .. val .. '")<cr>', {noremap = true}})
-    end
+    table.insert(
+      keys,
+      {"n", "sd" .. key_1, "<cmd>lua surround.surround_delete(" .. utils.quote(val_1) .. ")<cr>", {noremap = true}}
+    )
+
     -- Surround Replace
     for key_2, val_2 in pairs(map_keys) do
-      -- Handle different quotes
-      if key == '"' then
-        table.insert(
-          keys,
-          {
-            "n", -- Normal Mode
-            "sr" .. key .. key_2, -- LHS
-            "<cmd>lua surround.surround_replace('" .. val .. '\',"' .. val_2 .. '")<cr>', -- RHS
-            {noremap = true} -- Options
-          }
-        )
-      elseif key_2 == '"' then
-        table.insert(
-          keys,
-          {
-            "n", -- Normal Mode
-            "sr" .. key .. key_2, -- LHS
-            '<cmd>lua surround.surround_replace("' .. val .. '",\'' .. val_2 .. "')<cr>", -- RHS
-            {noremap = true} -- Options
-          }
-        )
-      else
-        table.insert(
-          keys,
-          {
-            "n", -- Normal Mode
-            "sr" .. key .. key_2, -- LHS
-            "<cmd>lua surround.surround_replace('" .. val .. '\',"' .. val_2 .. '")<cr>', -- RHS
-            {noremap = true} -- Options
-          }
-        )
-      end
+      table.insert(
+        keys,
+        {
+          "n", -- Normal Mode
+          "sr" .. key_1 .. key_2, -- LHS
+          "<cmd>lua surround.surround_replace(" .. utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
+          {noremap = true} -- Options
+        }
+      )
     end
   end
+
+  -- Load Keymaps
   utils.load_keymaps(keys)
 end
 
