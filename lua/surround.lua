@@ -436,7 +436,7 @@ local function repeat_last()
   for i = 1, #cmd[2] do
     cmd[2][i] = utils.quote(cmd[2][i])
   end
-  vim.cmd("lua surround." .. cmd[1] .. "(" .. utils.get(unpack(cmd[2]), "") .. ")")
+  vim.cmd("lua require'surround'." .. cmd[1] .. "(" .. utils.get(unpack(cmd[2]), "") .. ")")
 end
 
 local function set_keymaps()
