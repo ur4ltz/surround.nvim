@@ -90,7 +90,7 @@ local function surround_add(char)
             break
           end
         end
-        line = string.insert(line, #line, space .. char_pairs[CLOSING])
+        line = string.insert(line, #line+1, space .. char_pairs[CLOSING])
         line = string.insert(line, index, char_pairs[OPENING] .. space)
         context[1] = line
       else
