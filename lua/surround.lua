@@ -90,7 +90,7 @@ local function surround_add(char)
             break
           end
         end
-        line = string.insert(line, #line+1, space .. char_pairs[CLOSING])
+        line = string.insert(line, #line + 1, space .. char_pairs[CLOSING])
         line = string.insert(line, index, char_pairs[OPENING] .. space)
         context[1] = line
       else
@@ -452,64 +452,147 @@ local function set_keymaps()
   end
 
   local keys = {}
-  -- Special Maps
-  -- Cycle surrounding quotes
-  table.insert(keys, {"n", "stq", "<cmd>lua require'surround'.toggle_quotes()<cr>", {noremap = true}})
-  -- Cycle surrounding brackets
-  table.insert(keys, {"n", "stb", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
-  -- Cycle surrounding brackets
-  table.insert(keys, {"n", "stB", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
-  -- Repeat Last surround command
-  table.insert(keys, {"n", "ss", "<cmd>lua require'surround'.repeat_last()<cr>", {noremap = true}})
+  if (vim.g.surround_mappings_style == "sandwich") then
+    -- Special Maps
+    -- Cycle surrounding quotes
+    table.insert(keys, {"n", "stq", "<cmd>lua require'surround'.toggle_quotes()<cr>", {noremap = true}})
+    -- Cycle surrounding brackets
+    table.insert(keys, {"n", "stb", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
+    -- Cycle surrounding brackets
+    table.insert(keys, {"n", "stB", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
+    -- Repeat Last surround command
+    table.insert(keys, {"n", "ss", "<cmd>lua require'surround'.repeat_last()<cr>", {noremap = true}})
 
-  -- Insert Mode Ctrl-S mappings
-  for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable, vim.g.surround_pairs.linear)) do
-    table.insert(keys, {"i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>", {noremap = true}})
-    table.insert(
-      keys,
-      {"i", "<c-s>" .. pair[OPENING] .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>", {noremap = true}}
-    )
-    table.insert(
-      keys,
-      {"i", "<c-s>" .. pair[OPENING] .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O", {noremap = true}}
-    )
-  end
-
-  -- Main Maps
-  for key_1, val_1 in pairs(map_keys) do
-    -- Surround Add
-    table.insert(
-      keys,
-      {
-        "v",
-        "s" .. key_1,
-        "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) .. ")<cr>",
-        {noremap = true}
-      }
-    )
-
-    -- Surround Delete
-    table.insert(
-      keys,
-      {
-        "n",
-        "sd" .. key_1,
-        "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) .. ")<cr>",
-        {noremap = true}
-      }
-    )
-
-    -- Surround Replace
-    for key_2, val_2 in pairs(map_keys) do
+    -- Insert Mode Ctrl-S mappings
+    for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable, vim.g.surround_pairs.linear)) do
+      table.insert(keys, {"i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>", {noremap = true}})
       table.insert(
         keys,
         {
-          "n", -- Normal Mode
-          "sr" .. key_1 .. key_2, -- LHS
-          "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
-          {noremap = true} -- Options
+          "i",
+          "<c-s>" .. pair[OPENING] .. " ",
+          pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>",
+          {noremap = true}
         }
       )
+      table.insert(
+        keys,
+        {
+          "i",
+          "<c-s>" .. pair[OPENING] .. "<c-s>",
+          pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O",
+          {noremap = true}
+        }
+      )
+    end
+
+    -- Main Maps
+    for key_1, val_1 in pairs(map_keys) do
+      -- Surround Add
+      table.insert(
+        keys,
+        {
+          "v",
+          "s" .. key_1,
+          "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) .. ")<cr>",
+          {noremap = true}
+        }
+      )
+
+      -- Surround Delete
+      table.insert(
+        keys,
+        {
+          "n",
+          "sd" .. key_1,
+          "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) .. ")<cr>",
+          {noremap = true}
+        }
+      )
+
+      -- Surround Replace
+      for key_2, val_2 in pairs(map_keys) do
+        table.insert(
+          keys,
+          {
+            "n", -- Normal Mode
+            "sr" .. key_1 .. key_2, -- LHS
+            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
+            {noremap = true} -- Options
+          }
+        )
+      end
+    end
+  elseif (vim.g.surround_mappings_style == "surround") then
+    -- Special Maps
+    -- Cycle surrounding quotes
+    table.insert(keys, {"n", "cq", "<cmd>lua require'surround'.toggle_quotes()<cr>", {noremap = true}})
+    -- Cycle surrounding brackets
+    -- table.insert(keys, {"n", "c[", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
+    -- Cycle surrounding brackets
+    -- table.insert(keys, {"n", "cB", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
+    -- Repeat Last surround command
+    -- table.insert(keys, {"n", "ss", "<cmd>lua require'surround'.repeat_last()<cr>", {noremap = true}})
+
+    -- Insert Mode Ctrl-S mappings
+    for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable, vim.g.surround_pairs.linear)) do
+      table.insert(keys, {"i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>", {noremap = true}})
+      table.insert(
+        keys,
+        {
+          "i",
+          "<c-s>" .. pair[OPENING] .. " ",
+          pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>",
+          {noremap = true}
+        }
+      )
+      table.insert(
+        keys,
+        {
+          "i",
+          "<c-s>" .. pair[OPENING] .. "<c-s>",
+          pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O",
+          {noremap = true}
+        }
+      )
+    end
+
+    -- Normal Mode Maps
+    for key_1, val_1 in pairs(map_keys) do
+      -- Surround Add
+      table.insert(
+        keys,
+        {
+          "v",
+          "s" .. key_1,
+          "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) .. ")<cr>",
+          {noremap = true}
+        }
+      )
+
+      -- Surround Delete
+      table.insert(
+        keys,
+        {
+          "n",
+          "ds" .. key_1,
+          "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) .. ")<cr>",
+          {noremap = true}
+        }
+      )
+
+      -- Surround Replace
+      for key_2, val_2 in pairs(map_keys) do
+        table.insert(
+          keys,
+          {
+            "n", -- Normal Mode
+            "cs" .. key_1 .. key_2, -- LHS
+            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
+            {noremap = true} -- Options
+          }
+        )
+      end
     end
   end
 
@@ -539,6 +622,7 @@ local function setup(opts)
     end
   end
   vim.cmd("highlight SurroundFeedback cterm=reverse gui=reverse")
+  set_default("mappings_style", "sandwich")
   set_default(
     "pairs",
     {
