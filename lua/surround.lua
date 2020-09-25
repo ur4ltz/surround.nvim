@@ -454,13 +454,13 @@ local function set_keymaps()
   local keys = {}
   -- Special Maps
   -- Cycle surrounding quotes
-  table.insert(keys, {"n", "stq", "<cmd>lua surround.toggle_quotes()<cr>", {noremap = true}})
+  table.insert(keys, {"n", "stq", "<cmd>lua require'surround'.toggle_quotes()<cr>", {noremap = true}})
   -- Cycle surrounding brackets
-  table.insert(keys, {"n", "stb", "<cmd>lua surround.toggle_brackets()<cr>", {noremap = true}})
+  table.insert(keys, {"n", "stb", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
   -- Cycle surrounding brackets
-  table.insert(keys, {"n", "stB", "<cmd>lua surround.toggle_brackets()<cr>", {noremap = true}})
+  table.insert(keys, {"n", "stB", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
   -- Repeat Last surround command
-  table.insert(keys, {"n", "ss", "<cmd>lua surround.repeat_last()<cr>", {noremap = true}})
+  table.insert(keys, {"n", "ss", "<cmd>lua require'surround'.repeat_last()<cr>", {noremap = true}})
 
   -- Insert Mode Ctrl-S mappings
   for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable, vim.g.surround_pairs.linear)) do
@@ -480,13 +480,13 @@ local function set_keymaps()
     -- Surround Add
     table.insert(
       keys,
-      {"v", "s" .. key_1, "gv<cmd>lua surround.surround_add(" .. utils.quote(val_1) .. ")<cr>", {noremap = true}}
+      {"v", "s" .. key_1, "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) .. ")<cr>", {noremap = true}}
     )
 
     -- Surround Delete
     table.insert(
       keys,
-      {"n", "sd" .. key_1, "<cmd>lua surround.surround_delete(" .. utils.quote(val_1) .. ")<cr>", {noremap = true}}
+      {"n", "sd" .. key_1, "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) .. ")<cr>", {noremap = true}}
     )
 
     -- Surround Replace
@@ -496,7 +496,7 @@ local function set_keymaps()
         {
           "n", -- Normal Mode
           "sr" .. key_1 .. key_2, -- LHS
-          "<cmd>lua surround.surround_replace(" .. utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
+          "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
           {noremap = true} -- Options
         }
       )
