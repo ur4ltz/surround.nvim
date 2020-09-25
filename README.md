@@ -10,11 +10,14 @@ feature requests.
 1. Provides key mapping to add surrounding characters.( visually select then press `s<char>` )
 2. Provides key mapping to replace surrounding characters.( `sr<from><to>` )
 3. Provides key mapping to delete surrounding characters.( `sd<char>` )
+4. `ss` repeats last surround command.
 
 #### Insert Mode
 
 - `<c-s><char>` will insert both pairs in insert mode.
+- `<c-s><char><space>` will insert both pairs in insert mode with surrounding whitespace.
 - `<c-s><char><c-s>` will insert both pairs on newlines insert mode.
+
 ### IDK I was bored
 
 1. Cycle surrounding quotes type. (`stq`)

@@ -314,7 +314,7 @@ local function get_non_nested_pair(buffer, cursor_position, surrounding_char)
         end
       else -- if finding the last char then do this
         if (current_char == pair[CLOSING] and prev_char ~= "\\") then
-          -- found last pair now return the indexes
+          is_finding_opening = true -- found last pair now find first pair
           if (col_no >= cursor_position[COLUMN] and line_no >= cursor_position[LINE]) then
             closing_index = {line_no, col_no}
             return {opening_index, closing_index}

@@ -480,13 +480,23 @@ local function set_keymaps()
     -- Surround Add
     table.insert(
       keys,
-      {"v", "s" .. key_1, "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) .. ")<cr>", {noremap = true}}
+      {
+        "v",
+        "s" .. key_1,
+        "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) .. ")<cr>",
+        {noremap = true}
+      }
     )
 
     -- Surround Delete
     table.insert(
       keys,
-      {"n", "sd" .. key_1, "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) .. ")<cr>", {noremap = true}}
+      {
+        "n",
+        "sd" .. key_1,
+        "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) .. ")<cr>",
+        {noremap = true}
+      }
     )
 
     -- Surround Replace
