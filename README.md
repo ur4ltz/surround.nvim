@@ -40,6 +40,17 @@ feature requests.
 
 - Put this somewhere in your init.vim: `lua require"surround".setup{}`
 
+1. Packer.nvim 
+```
+use {
+	"blackCauldron7/surround.nvim",
+	config = function()
+		require "surround".setup {}
+	end
+}
+```
+
+
 ## Configuration
 
 ### Format: for **vimscript** `let g:surround_<option>` and for **lua** `vim.g.surround_<option>`
