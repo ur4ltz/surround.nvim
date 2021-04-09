@@ -35,18 +35,15 @@ feature requests.
 
 ## Installation
 
-1. vim-plug: `Plug 'blackcauldron7/surround.nvim'`
-1. minPlug:  `MinPlug blackcauldron7/surround.nvim`
-
-- Put this somewhere in your init.vim: `lua require"surround".setup{}`
-
+1. vim-plug: `Plug 'blackcauldron7/surround.nvim'` and Put this somewhere in your init.vim: `lua require"surround".setup{}`
+1. minPlug:  `MinPlug blackcauldron7/surround.nvim` and Put this somewhere in your init.vim: `lua require"surround".setup{}`
 1. Packer.nvim 
 ```
 use {
-	"blackCauldron7/surround.nvim",
-	config = function()
-		require "surround".setup {}
-	end
+  "blackCauldron7/surround.nvim",
+  config = function()
+    require "surround".setup {}
+  end
 }
 ```
 
