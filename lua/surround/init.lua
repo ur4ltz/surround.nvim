@@ -653,7 +653,6 @@ local function setup(opts)
   if vim.g.surround_load_keymaps then
     set_keymaps()
   end
-  print("surround.nvim started successfully")
 end
 
 return {
