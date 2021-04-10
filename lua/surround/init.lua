@@ -11,12 +11,35 @@ local LINE = 1
 local COLUMN = 2
 
 local function surround_add_operator_mode()
-  local cursor_position = vim.api.nvim_win_get_cursor(0)
-  local mode = vim.api.nvim_get_mode()["mode"]
+  local char = vim.fn.nr2char(vim.fn.getchar())
+  local map_keys = {
+    b = "(",
+    B = "{",
+    f = "f"
+  }
+  for i, v in pairs(map_keys) do
+    if char == i then
+      char = v
+      break
+    end
+  end
 
   -- Get context
-  local start_line, start_col, end_line, end_col = utils.get_visual_pos()
-  local context = vim.api.nvim_call_function("getline", {start_line, end_line})
+  local start_line, start_col, end_line, end_col = utils.get_operator_pos()
+  local mode
+  if start_line == end_line then
+    mode = "v"
+  else
+    mode = "V"
+  end
+  local context =
+    vim.api.nvim_call_function(
+    "getline",
+    {
+      start_line,
+      end_line
+    }
+  )
 
   -- Get the pair to add
   local surround_pairs = vim.g.surround_pairs
@@ -53,7 +76,7 @@ local function surround_add_operator_mode()
         -- Handle multiple lines
         local first_line = context[1]
         local last_line = context[#context]
-        last_line = string.insert(last_line, end_col, space .. ")")
+        last_line = string.insert(last_line, end_col + 1, space .. ")")
         first_line =
           string.insert(first_line, start_col, func_name .. "(" .. space)
         context[1] = first_line
@@ -74,7 +97,7 @@ local function surround_add_operator_mode()
         local first_line = context[1]
         local last_line = context[#context]
         last_line =
-          string.insert(last_line, end_col, space .. char_pairs[CLOSING])
+          string.insert(last_line, end_col + 1, space .. char_pairs[CLOSING])
         first_line =
           string.insert(first_line, start_col, char_pairs[OPENING] .. space)
         context[1] = first_line
@@ -113,7 +136,7 @@ local function surround_add_operator_mode()
 
         -- Insert the characters
         last_line =
-          string.insert(last_line, #last_line, space .. char_pairs[CLOSING])
+          string.insert(last_line, #last_line + 1, space .. char_pairs[CLOSING])
         first_line =
           string.insert(first_line, index, char_pairs[OPENING] .. space)
         context[1] = first_line
@@ -136,18 +159,29 @@ local function surround_add_operator_mode()
   print("Added surrounding ", char)
 
   -- Set Last CMD
-  vim.g.surround_last_cmd = {"surround_add", {char}}
+  vim.g.surround_last_cmd = {
+    "surround_add",
+    {
+      char
+    }
+  }
 end
 --- Surround Visual Selection.
 -- Adds a character surrounding the users visual selection
 -- @param char The character to surround with
 local function surround_add(char)
-  local cursor_position = vim.api.nvim_win_get_cursor(0)
   local mode = vim.api.nvim_get_mode()["mode"]
 
   -- Get context
   local start_line, start_col, end_line, end_col = utils.get_visual_pos()
-  local context = vim.api.nvim_call_function("getline", {start_line, end_line})
+  local context =
+    vim.api.nvim_call_function(
+    "getline",
+    {
+      start_line,
+      end_line
+    }
+  )
 
   -- Get the pair to add
   local surround_pairs = vim.g.surround_pairs
@@ -184,7 +218,7 @@ local function surround_add(char)
         -- Handle multiple lines
         local first_line = context[1]
         local last_line = context[#context]
-        last_line = string.insert(last_line, end_col, space .. ")")
+        last_line = string.insert(last_line, end_col + 1, space .. ")")
         first_line =
           string.insert(first_line, start_col, func_name .. "(" .. space)
         context[1] = first_line
@@ -205,7 +239,7 @@ local function surround_add(char)
         local first_line = context[1]
         local last_line = context[#context]
         last_line =
-          string.insert(last_line, end_col, space .. char_pairs[CLOSING])
+          string.insert(last_line, end_col + 1, space .. char_pairs[CLOSING])
         first_line =
           string.insert(first_line, start_col, char_pairs[OPENING] .. space)
         context[1] = first_line
@@ -244,7 +278,7 @@ local function surround_add(char)
 
         -- Insert the characters
         last_line =
-          string.insert(last_line, #last_line, space .. char_pairs[CLOSING])
+          string.insert(last_line, #last_line + 1, space .. char_pairs[CLOSING])
         first_line =
           string.insert(first_line, index, char_pairs[OPENING] .. space)
         context[1] = first_line
@@ -267,7 +301,12 @@ local function surround_add(char)
   print("Added surrounding ", char)
 
   -- Set Last CMD
-  vim.g.surround_last_cmd = {"surround_add", {char}}
+  vim.g.surround_last_cmd = {
+    "surround_add",
+    {
+      char
+    }
+  }
 end
 
 local function surround_delete(char)
@@ -287,7 +326,14 @@ local function surround_delete(char)
     start_line, end_line, top_offset, _ =
       utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
   end
-  context = vim.api.nvim_call_function("getline", {start_line, end_line})
+  context =
+    vim.api.nvim_call_function(
+    "getline",
+    {
+      start_line,
+      end_line
+    }
+  )
   local cursor_position_relative = cursor_position
   cursor_position_relative[LINE] = cursor_position[LINE] - top_offset
   cursor_position_relative[COLUMN] = cursor_position[COLUMN] + 1 -- vim indexes columns at 0
@@ -300,7 +346,10 @@ local function surround_delete(char)
       context,
       cursor_position_relative,
       char,
-      {"_", "."}
+      {
+        "_",
+        "."
+      }
     )
   else
     indexes = parser.get_surround_pair(context, cursor_position_relative, char)
@@ -342,7 +391,12 @@ local function surround_delete(char)
   print("Deleted surrounding ", char)
 
   -- Set Last CMD
-  vim.g.surround_last_cmd = {"surround_delete", {char}}
+  vim.g.surround_last_cmd = {
+    "surround_delete",
+    {
+      char
+    }
+  }
 end
 
 local function surround_replace(
@@ -372,7 +426,14 @@ local function surround_replace(
       start_line, end_line, top_offset, _ =
         utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
     end
-    context = vim.api.nvim_call_function("getline", {start_line, end_line})
+    context =
+      vim.api.nvim_call_function(
+      "getline",
+      {
+        start_line,
+        end_line
+      }
+    )
     cursor_position_relative = cursor_position
     cursor_position_relative[LINE] = cursor_position[LINE] - top_offset
     cursor_position_relative[COLUMN] = cursor_position[COLUMN] + 1 -- vim indexes columns at 0
@@ -381,7 +442,14 @@ local function surround_replace(
   -- Replace surrounding pairs
   if char_1 == "f" and char_2 == "f" then
     local indexes =
-      parser.get_surround_pair(context, cursor_position_relative, char_1, {"_"})
+      parser.get_surround_pair(
+      context,
+      cursor_position_relative,
+      char_1,
+      {
+        "_"
+      }
+    )
 
     -- Bail out if no surrounding function found.
     if not indexes then
@@ -413,7 +481,10 @@ local function surround_replace(
       context,
       cursor_position_relative,
       char_1,
-      {"_", "."}
+      {
+        "_",
+        "."
+      }
     )
 
     -- Bail out if no surrounding function found.
@@ -520,7 +591,15 @@ local function surround_replace(
 
   -- Set last_cmd if not a toggle triggered the function
   if not is_toggle then
-    vim.g.surround_last_cmd = {"surround_replace", {char_1}, {char_2}}
+    vim.g.surround_last_cmd = {
+      "surround_replace",
+      {
+        char_1
+      },
+      {
+        char_2
+      }
+    }
   end
 end
 
@@ -528,7 +607,14 @@ local function toggle_quotes()
   local cursor_position = vim.api.nvim_win_get_cursor(0)
   local start_line, end_line, top_offset, _ =
     utils.get_line_numbers_by_offset(0)
-  local context = vim.api.nvim_call_function("getline", {start_line, end_line})
+  local context =
+    vim.api.nvim_call_function(
+    "getline",
+    {
+      start_line,
+      end_line
+    }
+  )
   local cursor_position_relative = cursor_position
   cursor_position_relative[LINE] = cursor_position[LINE] - top_offset
   cursor_position_relative[COLUMN] = cursor_position[COLUMN] + 1 -- vim indexes columns at 0
@@ -561,7 +647,10 @@ local function toggle_quotes()
           context
         )
       end
-      vim.g.surround_last_cmd = {"toggle_quotes", {}}
+      vim.g.surround_last_cmd = {
+        "toggle_quotes",
+        {}
+      }
       return
     end
   end
@@ -571,7 +660,14 @@ local function toggle_brackets()
   local cursor_position = vim.api.nvim_win_get_cursor(0)
   local start_line, end_line, top_offset, _ =
     utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
-  local context = vim.api.nvim_call_function("getline", {start_line, end_line})
+  local context =
+    vim.api.nvim_call_function(
+    "getline",
+    {
+      start_line,
+      end_line
+    }
+  )
   local cursor_position_relative = cursor_position
   cursor_position_relative[LINE] = cursor_position[LINE] - top_offset
   cursor_position_relative[COLUMN] = cursor_position[COLUMN] + 1 -- vim indexes columns at 0
@@ -584,11 +680,17 @@ local function toggle_brackets()
     if indexes[i] then
       indexes[i] = indexes[i][OPENING]
     else
-      indexes[i] = {-1, -1}
+      indexes[i] = {
+        -1,
+        -1
+      }
     end
   end
 
-  local index = {-1, -1}
+  local index = {
+    -1,
+    -1
+  }
   for _, opening_indexes in ipairs(indexes) do
     if opening_indexes[LINE] > index[LINE] then
       if opening_indexes[COLUMN] > index[COLUMN] then
@@ -626,7 +728,10 @@ local function toggle_brackets()
           context
         )
       end
-      vim.g.surround_last_cmd = {"toggle_brackets", {}}
+      vim.g.surround_last_cmd = {
+        "toggle_brackets",
+        {}
+      }
       return
     end
   end
@@ -661,6 +766,17 @@ local function set_keymaps()
   end
 
   local keys = {}
+  table.insert(
+    keys,
+    {
+      "n",
+      "ys",
+      "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@",
+      {
+        noremap = true
+      }
+    }
+  )
   if (vim.g.surround_mappings_style == "sandwich") then
     -- Special Maps
     -- Cycle surrounding quotes
@@ -670,7 +786,9 @@ local function set_keymaps()
         "n",
         "stq",
         "<cmd>lua require'surround'.toggle_quotes()<cr>",
-        {noremap = true}
+        {
+          noremap = true
+        }
       }
     )
     -- Cycle surrounding brackets
@@ -680,7 +798,9 @@ local function set_keymaps()
         "n",
         "stb",
         "<cmd>lua require'surround'.toggle_brackets()<cr>",
-        {noremap = true}
+        {
+          noremap = true
+        }
       }
     )
     -- Cycle surrounding brackets
@@ -690,7 +810,9 @@ local function set_keymaps()
         "n",
         "stB",
         "<cmd>lua require'surround'.toggle_brackets()<cr>",
-        {noremap = true}
+        {
+          noremap = true
+        }
       }
     )
     -- Repeat Last surround command
@@ -700,7 +822,9 @@ local function set_keymaps()
         "n",
         "ss",
         "<cmd>lua require'surround'.repeat_last()<cr>",
-        {noremap = true}
+        {
+          noremap = true
+        }
       }
     )
 
@@ -714,7 +838,9 @@ local function set_keymaps()
           "s" .. key_1,
           "gv<cmd>lua require'surround'.surround_add(" ..
             utils.quote(val_1) .. ")<cr>",
-          {noremap = true}
+          {
+            noremap = true
+          }
         }
       )
 
@@ -726,7 +852,9 @@ local function set_keymaps()
           "sd" .. key_1,
           "<cmd>lua require'surround'.surround_delete(" ..
             utils.quote(val_1) .. ")<cr>",
-          {noremap = true}
+          {
+            noremap = true
+          }
         }
       )
 
@@ -739,7 +867,9 @@ local function set_keymaps()
             "sr" .. key_1 .. key_2, -- LHS
             "<cmd>lua require'surround'.surround_replace(" ..
               utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
-            {noremap = true} -- Options
+            {
+              noremap = true
+            } -- Options
           }
         )
       end
@@ -753,7 +883,9 @@ local function set_keymaps()
         "n",
         "cq",
         "<cmd>lua require'surround'.toggle_quotes()<cr>",
-        {noremap = true}
+        {
+          noremap = true
+        }
       }
     )
     -- Cycle surrounding brackets
@@ -773,7 +905,9 @@ local function set_keymaps()
           "s" .. key_1,
           "gv<cmd>lua require'surround'.surround_add(" ..
             utils.quote(val_1) .. ")<cr>",
-          {noremap = true}
+          {
+            noremap = true
+          }
         }
       )
 
@@ -785,7 +919,9 @@ local function set_keymaps()
           "ds" .. key_1,
           "<cmd>lua require'surround'.surround_delete(" ..
             utils.quote(val_1) .. ")<cr>",
-          {noremap = true}
+          {
+            noremap = true
+          }
         }
       )
 
@@ -798,7 +934,9 @@ local function set_keymaps()
             "cs" .. key_1 .. key_2, -- LHS
             "<cmd>lua require'surround'.surround_replace(" ..
               utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
-            {noremap = true} -- Options
+            {
+              noremap = true
+            } -- Options
           }
         )
       end
@@ -815,7 +953,9 @@ local function set_keymaps()
         "i",
         "<c-s>" .. pair[OPENING],
         pair[OPENING] .. pair[CLOSING] .. "<left>",
-        {noremap = true}
+        {
+          noremap = true
+        }
       }
     )
     table.insert(
@@ -824,7 +964,9 @@ local function set_keymaps()
         "i",
         "<c-s>" .. pair[OPENING] .. " ",
         pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>",
-        {noremap = true}
+        {
+          noremap = true
+        }
       }
     )
     table.insert(
@@ -833,7 +975,9 @@ local function set_keymaps()
         "i",
         "<c-s>" .. pair[OPENING] .. "<c-s>",
         pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O",
-        {noremap = true}
+        {
+          noremap = true
+        }
       }
     )
   end
@@ -847,7 +991,15 @@ local function load_autogroups(augroups)
     vim.cmd("augroup " .. group_name)
     vim.cmd("autocmd!")
     for _, cmd in ipairs(group) do
-      vim.cmd(table.concat(vim.tbl_flatten {"autocmd", cmd}, " "))
+      vim.cmd(
+        table.concat(
+          vim.tbl_flatten {
+            "autocmd",
+            cmd
+          },
+          " "
+        )
+      )
     end
     vim.cmd("augroup END")
   end
@@ -869,14 +1021,32 @@ local function setup(opts)
     "pairs",
     {
       nestable = {
-        {"(", ")"},
-        {"[", "]"},
-        {"{", "}"}
+        {
+          "(",
+          ")"
+        },
+        {
+          "[",
+          "]"
+        },
+        {
+          "{",
+          "}"
+        }
       },
       linear = {
-        {"'", "'"},
-        {"`", "`"},
-        {'"', '"'}
+        {
+          "'",
+          "'"
+        },
+        {
+          "`",
+          "`"
+        },
+        {
+          '"',
+          '"'
+        }
       }
     }
   )
@@ -893,8 +1063,21 @@ local function setup(opts)
     }
   end
   set_default("context_offset", 100)
-  set_default("quotes", {"'", '"'})
-  set_default("brackets", {"(", "{", "["})
+  set_default(
+    "quotes",
+    {
+      "'",
+      '"'
+    }
+  )
+  set_default(
+    "brackets",
+    {
+      "(",
+      "{",
+      "["
+    }
+  )
   set_default("load_keymaps", true)
   if vim.g.surround_load_keymaps then
     set_keymaps()
@@ -906,6 +1089,7 @@ return {
   surround_delete = surround_delete,
   surround_replace = surround_replace,
   surround_add = surround_add,
+  surround_add_operator_mode = surround_add_operator_mode,
   toggle_quotes = toggle_quotes,
   toggle_brackets = toggle_brackets,
   repeat_last = repeat_last
