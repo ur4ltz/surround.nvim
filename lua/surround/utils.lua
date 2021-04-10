@@ -49,7 +49,8 @@ function string.isalnum(inputstr, includes)
   for i = 1, #inputstr do
     local char = inputstr:sub(i, i)
     if
-      not (("A" <= char and char <= "Z") or ("a" <= char and char <= "z") or ("0" <= char and char <= "9") or
+      not (("A" <= char and char <= "Z") or ("a" <= char and char <= "z") or
+        ("0" <= char and char <= "9") or
         table.contains(get(includes, {}), char))
      then
       return false
@@ -80,7 +81,8 @@ function string.split(inputstr, sep)
 end
 
 function string.insert(inputstr, index, sub_str)
-  return inputstr:sub(1, index - 1) .. sub_str .. inputstr:sub(index, #inputstr + 1)
+  return inputstr:sub(1, index - 1) ..
+    sub_str .. inputstr:sub(index, #inputstr + 1)
 end
 
 function string.remove(inputstr, from, to)
@@ -91,7 +93,8 @@ function string.remove(inputstr, from, to)
 end
 
 function string.set(inputstr, index, sub_str)
-  return inputstr:sub(1, index - 1) .. sub_str .. inputstr:sub(index + 1, #inputstr)
+  return inputstr:sub(1, index - 1) ..
+    sub_str .. inputstr:sub(index + 1, #inputstr)
 end
 
 local function get_visual_pos()
@@ -99,6 +102,16 @@ local function get_visual_pos()
   local start_line = start[1]
   local start_col = start[2] + 1
   local _end = vim.api.nvim_buf_get_mark(0, ">")
+  local end_line = _end[1]
+  local end_col = _end[2] + 2
+  return start_line, start_col, end_line, end_col
+end
+
+local function get_operator_pos()
+  local start = vim.api.nvim_buf_get_mark(0, "[")
+  local start_line = start[1]
+  local start_col = start[2] + 1
+  local _end = vim.api.nvim_buf_get_mark(0, "]")
   local end_line = _end[1]
   local end_col = _end[2] + 2
   return start_line, start_col, end_line, end_col
@@ -123,7 +136,13 @@ end
 
 local function user_input(message)
   vim.api.nvim_call_function("inputsave", {})
-  local val = vim.api.nvim_call_function("input", {message})
+  local val =
+    vim.api.nvim_call_function(
+    "input",
+    {
+      message
+    }
+  )
   vim.api.nvim_call_function("inputrestore", {})
   vim.api.nvim_command('echo "\r                          \r"')
   return val
@@ -181,6 +200,7 @@ return {
   table_keys = table_keys,
   get_nth_element = get_nth_element,
   get_visual_pos = get_visual_pos,
+  get_operator_pos = get_operator_pos,
   load_keymaps = load_keymaps,
   quote = quote,
   get = get
