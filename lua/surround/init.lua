@@ -784,7 +784,7 @@ local function set_keymaps()
       keys,
       {
         "n",
-        "stq",
+        vim.g.surround_prefix.."tq",
         "<cmd>lua require'surround'.toggle_quotes()<cr>",
         {
           noremap = true
@@ -796,7 +796,7 @@ local function set_keymaps()
       keys,
       {
         "n",
-        "stb",
+        vim.g.surround_prefix.."tb",
         "<cmd>lua require'surround'.toggle_brackets()<cr>",
         {
           noremap = true
@@ -808,7 +808,7 @@ local function set_keymaps()
       keys,
       {
         "n",
-        "stB",
+        vim.g.surround_prefix.."tB",
         "<cmd>lua require'surround'.toggle_brackets()<cr>",
         {
           noremap = true
@@ -820,7 +820,7 @@ local function set_keymaps()
       keys,
       {
         "n",
-        "ss",
+        vim.g.surround_prefix..vim.g.surround_prefix,
         "<cmd>lua require'surround'.repeat_last()<cr>",
         {
           noremap = true
@@ -835,7 +835,7 @@ local function set_keymaps()
         keys,
         {
           "v",
-          "s" .. key_1,
+          vim.g.surround_prefix .. key_1,
           "gv<cmd>lua require'surround'.surround_add(" ..
             utils.quote(val_1) .. ")<cr>",
           {
@@ -849,7 +849,7 @@ local function set_keymaps()
         keys,
         {
           "n",
-          "sd" .. key_1,
+          vim.g.surround_prefix.."d" .. key_1,
           "<cmd>lua require'surround'.surround_delete(" ..
             utils.quote(val_1) .. ")<cr>",
           {
@@ -864,7 +864,7 @@ local function set_keymaps()
           keys,
           {
             "n", -- Normal Mode
-            "sr" .. key_1 .. key_2, -- LHS
+            vim.g.surround_prefix.."r" .. key_1 .. key_2, -- LHS
             "<cmd>lua require'surround'.surround_replace(" ..
               utils.quote(val_1) .. "," .. utils.quote(val_2) .. ")<cr>", -- RHS
             {
@@ -1017,36 +1017,15 @@ local function setup(opts)
   end
   vim.cmd("highlight SurroundFeedback cterm=reverse gui=reverse")
   set_default("mappings_style", "sandwich")
+	set_default("prefix", "s")
   set_default(
     "pairs",
     {
-      nestable = {
-        {
-          "(",
-          ")"
-        },
-        {
-          "[",
-          "]"
-        },
-        {
-          "{",
-          "}"
-        }
-      },
+      nestable = {{"(", ")"}, {"[", "]"}, {"{", "}"}},
       linear = {
-        {
-          "'",
-          "'"
-        },
-        {
-          "`",
-          "`"
-        },
-        {
-          '"',
-          '"'
-        }
+        {"'", "'"},
+        {"`", "`"},
+        {'"', '"'}
       }
     }
   )
