@@ -1,6 +1,5 @@
 --- a parser for surrounding character pairs
 -- @module parser
-
 local utils = require "surround.utils"
 
 local OPENING = 1
@@ -16,11 +15,18 @@ local function get_surrounding_function(buffer, cursor_position, includes)
   local function_start_index
   local offset = 0
 
-  local buffer_prev_indexes = {cursor_position[LINE], cursor_position[COLUMN] - 1}
-  local buffer_next_indexes = {cursor_position[LINE], cursor_position[COLUMN] + 1}
+  local buffer_prev_indexes = {
+    cursor_position[LINE], cursor_position[COLUMN] - 1
+  }
+  local buffer_next_indexes = {
+    cursor_position[LINE], cursor_position[COLUMN] + 1
+  }
 
-  local char_before_cursor = buffer[cursor_position[LINE]]:sub(cursor_position[COLUMN] - 1, cursor_position[COLUMN] - 1)
-  local char_at_cursor = buffer[cursor_position[LINE]]:sub(cursor_position[COLUMN], cursor_position[COLUMN])
+  local char_before_cursor = buffer[cursor_position[LINE]]:sub(
+                                 cursor_position[COLUMN] - 1,
+                                 cursor_position[COLUMN] - 1)
+  local char_at_cursor = buffer[cursor_position[LINE]]:sub(
+                             cursor_position[COLUMN], cursor_position[COLUMN])
   if (char_at_cursor == "\\") then
     buffer_next_indexes[CLOSING] = cursor_position[COLUMN]
     offset = -1
@@ -39,9 +45,7 @@ local function get_surrounding_function(buffer, cursor_position, includes)
   for line_no = buffer_prev_indexes[LINE], 1, -1 do
     local line = buffer[line_no]
     -- Check if already found opening character
-    if opening_index then
-      break
-    end
+    if opening_index then break end
     if line_no < buffer_prev_indexes[LINE] then
       -- Loop through the line in reverse order if cursor is not on the line
       for col_no = #line, 1, -1 do
@@ -54,9 +58,7 @@ local function get_surrounding_function(buffer, cursor_position, includes)
         end
         if (current_char == pair[OPENING] and prev_char ~= "\\") then
           -- if the pair stack is empty set the opening indexes
-          if pair_stack == 0 then
-            opening_index = {line_no, col_no}
-          end
+          if pair_stack == 0 then opening_index = {line_no, col_no} end
           pair_stack = pair_stack - 1
         end
       end
@@ -97,9 +99,7 @@ local function get_surrounding_function(buffer, cursor_position, includes)
   -- Loop through the buffer line starting with the line the cursor is on
   for line_no = buffer_next_indexes[LINE], #buffer do
     -- If not already found find the closing pair
-    if closing_index then
-      break
-    end
+    if closing_index then break end
     local line = buffer[line_no]
     if line_no > buffer_next_indexes[LINE] then
       -- Loop through the characters in the line from the start if cursor is not on the line
@@ -148,7 +148,8 @@ local function get_surrounding_function(buffer, cursor_position, includes)
   end
 end
 
-local function get_nested_pair(buffer, cursor_position, surrounding_char)
+local function get_nested_pair(buffer, cursor_position, surrounding_char, n)
+  local requested_pair = n
   local surround_pairs = vim.g.surround_pairs
   local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
   local pair
@@ -163,11 +164,18 @@ local function get_nested_pair(buffer, cursor_position, surrounding_char)
   local closing_index
   local offset = 0
 
-  local buffer_prev_indexes = {cursor_position[LINE], cursor_position[COLUMN] - 1}
-  local buffer_next_indexes = {cursor_position[LINE], cursor_position[COLUMN] + 1}
+  local buffer_prev_indexes = {
+    cursor_position[LINE], cursor_position[COLUMN] - 1
+  }
+  local buffer_next_indexes = {
+    cursor_position[LINE], cursor_position[COLUMN] + 1
+  }
 
-  local char_before_cursor = buffer[cursor_position[LINE]]:sub(cursor_position[COLUMN] - 1, cursor_position[COLUMN] - 1)
-  local char_at_cursor = buffer[cursor_position[LINE]]:sub(cursor_position[COLUMN], cursor_position[COLUMN])
+  local char_before_cursor = buffer[cursor_position[LINE]]:sub(
+                                 cursor_position[COLUMN] - 1,
+                                 cursor_position[COLUMN] - 1)
+  local char_at_cursor = buffer[cursor_position[LINE]]:sub(
+                             cursor_position[COLUMN], cursor_position[COLUMN])
   if (char_at_cursor == "\\") then
     buffer_next_indexes[CLOSING] = cursor_position[COLUMN]
     offset = -1
@@ -185,9 +193,7 @@ local function get_nested_pair(buffer, cursor_position, surrounding_char)
   -- Loop through the lines before the cursor in reverse order
   for line_no = buffer_prev_indexes[LINE], 1, -1 do
     -- Check if already found
-    if opening_index then
-      break
-    end
+    if opening_index then break end
     local line = buffer[line_no]
     if line_no < buffer_prev_indexes[LINE] then
       -- Loop through the line in reverse order if cursor is not on the line
@@ -201,9 +207,11 @@ local function get_nested_pair(buffer, cursor_position, surrounding_char)
         end
         if (current_char == pair[OPENING] and prev_char ~= "\\") then
           -- if the pair stack is empty set the opening indexes
-          if pair_stack == 0 then
-            opening_index = {line_no, col_no}
-            break
+          if pair_stack <= 0 then
+            if requested_pair == 0 then
+              opening_index = {line_no, col_no}
+            end
+            requested_pair = requested_pair - 1
           end
           pair_stack = pair_stack - 1
         end
@@ -220,9 +228,11 @@ local function get_nested_pair(buffer, cursor_position, surrounding_char)
         end
         if (current_char == pair[OPENING] and prev_char ~= "\\") then
           -- if the pair stack is empty set the opening indexes
-          if pair_stack == 0 then
-            opening_index = {line_no, col_no}
-            break
+          if pair_stack <= 0 then
+            if requested_pair == 0 then
+              opening_index = {line_no, col_no}
+            end
+            requested_pair = requested_pair - 1
           end
           pair_stack = pair_stack - 1
         end
@@ -230,15 +240,14 @@ local function get_nested_pair(buffer, cursor_position, surrounding_char)
     end
   end
 
+  requested_pair = n
   -- Find closing character indexes
   -- Initialize pair stack
   pair_stack = 0
   -- Loop through the buffer line starting with the line the cursor is on
   for line_no = buffer_next_indexes[LINE], #buffer do
     -- If not already found find the closing pair
-    if closing_index then
-      break
-    end
+    if closing_index then break end
     local line = buffer[line_no]
     if line_no > buffer_next_indexes[LINE] then
       -- Loop through the characters in the line from the start if cursor is not on the line
@@ -252,9 +261,12 @@ local function get_nested_pair(buffer, cursor_position, surrounding_char)
         end
         if (current_char == pair[CLOSING] and prev_char ~= "\\") then
           -- if the pair stack is empty set the closing indexes
-          if pair_stack == 0 then
-            closing_index = {line_no, col_no + offset}
-            break
+          if pair_stack <= 0 then
+            if requested_pair == 0 then
+              closing_index = {line_no, col_no + offset}
+            else
+              requested_pair = requested_pair - 1
+            end
           end
           pair_stack = pair_stack - 1
         end
@@ -271,9 +283,11 @@ local function get_nested_pair(buffer, cursor_position, surrounding_char)
         end
         if (current_char == pair[CLOSING] and prev_char ~= "\\") then
           -- if the pair stack is empty set the closing indexes
-          if pair_stack == 0 then
-            closing_index = {line_no, col_no + offset}
-            break
+          if pair_stack <= 0 then
+            if requested_pair == 0 then
+              closing_index = {line_no, col_no + offset}
+            end
+            requested_pair = requested_pair - 1
           end
           pair_stack = pair_stack - 1
         end
@@ -305,7 +319,8 @@ local function get_non_nested_pair(buffer, cursor_position, surrounding_char)
       local prev_char = line:sub(col_no - 1, col_no - 1)
       local current_char = line:sub(col_no, col_no)
       if (is_finding_opening) then -- if finding the first char do this
-        if (col_no > cursor_position[COLUMN] and line_no >= cursor_position[LINE]) then -- Break out if there are no surrounding surround_pairs
+        if (col_no > cursor_position[COLUMN] and line_no >=
+            cursor_position[LINE]) then -- Break out if there are no surrounding surround_pairs
           break
         end
         if (current_char == pair[OPENING] and prev_char ~= "\\") then
@@ -315,7 +330,8 @@ local function get_non_nested_pair(buffer, cursor_position, surrounding_char)
       else -- if finding the last char then do this
         if (current_char == pair[CLOSING] and prev_char ~= "\\") then
           is_finding_opening = true -- found last pair now find first pair
-          if (col_no >= cursor_position[COLUMN] and line_no >= cursor_position[LINE]) then
+          if (col_no >= cursor_position[COLUMN] and line_no >=
+              cursor_position[LINE]) then
             closing_index = {line_no, col_no}
             return {opening_index, closing_index}
           end
@@ -332,41 +348,32 @@ end
 -- @param char the char for which the surrounding pair must be found
 -- @return a table consisting of a pair of indexes (1 indexed) in the form {opening_char_index, closing_char_index} or false if no pairs found
 -- @function get_surround_pair
-local function get_surround_pair(buffer, cursor_position, surrounding_char, includes)
+local function get_surround_pair(buffer, cursor_position, surrounding_char,
+                                 includes, n)
   local surround_pairs = vim.g.surround_pairs
   -- If the character is not in the pairs table return an emoty string.
-  local all_pairs = vim.tbl_flatten(table.merge(surround_pairs.nestable, surround_pairs.linear))
+  local all_pairs = vim.tbl_flatten(table.merge(surround_pairs.nestable,
+                                                surround_pairs.linear))
   local special_char = {"f"}
   for _, char in ipairs(special_char) do
     table.insert(all_pairs, #all_pairs + 1, char)
   end
-  if not table.contains(all_pairs, surrounding_char) then
-    return nil
-  end
+  if not table.contains(all_pairs, surrounding_char) then return nil end
 
+  if (surrounding_char == "f") then
+    return get_surrounding_function(buffer, cursor_position, includes)
+  end
   -- Check if the character can be nested.
   local is_nestable = false
   for _, pair in pairs(surround_pairs.nestable) do
-    if table.contains(pair, surrounding_char) then
-      is_nestable = true
-    end
+    if table.contains(pair, surrounding_char) then is_nestable = true end
   end
 
-  local indexes
-  if (surrounding_char == "f") then
-    indexes = get_surrounding_function(buffer, cursor_position, includes)
-  elseif (is_nestable) then
-    indexes = get_nested_pair(buffer, cursor_position, surrounding_char)
+  if (is_nestable) then
+    return get_nested_pair(buffer, cursor_position, surrounding_char, n)
   else
-    indexes = get_non_nested_pair(buffer, cursor_position, surrounding_char)
-  end
-  if not (indexes == nil) then
-    return indexes
-  else
-    return nil
+    return get_non_nested_pair(buffer, cursor_position, surrounding_char)
   end
 end
 
-return {
-  get_surround_pair = get_surround_pair
-}
+return {get_surround_pair = get_surround_pair}
