@@ -483,7 +483,7 @@ local function surround_replace(char_1, char_2, n, is_toggle, start_line,
 
   -- Set last_cmd if not a toggle triggered the function
   if not is_toggle then
-    vim.g.surround_last_cmd = {"surround_replace", {char_1}, {char_2}}
+    vim.g.surround_last_cmd = {"surround_replace", {char_1, char_2, n}}
   end
 end
 
@@ -567,9 +567,14 @@ local function repeat_last()
     print("No previous surround command found.")
     return
   end
-  for i = 1, #cmd[2] do cmd[2][i] = utils.quote(cmd[2][i]) end
-  vim.cmd("lua require'surround'." .. cmd[1] .. "(" ..
-              utils.get(unpack(cmd[2]), "") .. ")")
+  local fun = cmd[1]
+  local args = cmd[2]
+  for i, arg in pairs(args) do
+    if type(arg) == "string" then args[i] = utils.quote(arg) end
+  end
+  local str_args = table.concat(args, ",")
+  vim.cmd("lua require'surround'." .. fun .. "(" .. utils.get(str_args, "") ..
+              ")")
 end
 
 local function set_keymaps()
