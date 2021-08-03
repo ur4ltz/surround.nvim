@@ -28,6 +28,13 @@ local function surround_add_operator_mode()
     mode = "V"
   end
   local context = vim.api.nvim_call_function("getline", {start_line, end_line})
+  local id = vim.api.nvim_buf_add_highlight(0, 0, "CursorLine", start_line - 1,
+                                            start_col - 1, #context[1] - 1)
+  vim.api.nvim_buf_clear_namespace(0, id, start_line - 1, end_line - 1)
+  local hi_args = {0, id, "CursorLine"}
+  for line = start_line + 1, end_line do
+    --
+  end
 
   -- Get the pair to add
   local surround_pairs = vim.g.surround_pairs
@@ -645,13 +652,15 @@ local function set_keymaps()
 
       -- Surround Replace
       for key_2, val_2 in pairs(map_keys) do
-        table.insert(keys, {
-          "n", -- Normal Mode
-          vim.g.surround_prefix .. "r" .. key_1 .. key_2, -- LHS
-          "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-              "," .. utils.quote(val_2) .. ",0)<cr>", -- RHS
-          {noremap = true} -- Options
-        })
+        if key_1 ~= key_2 then
+          table.insert(keys, {
+            "n", -- Normal Mode
+            vim.g.surround_prefix .. "r" .. key_1 .. key_2, -- LHS
+            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
+                "," .. utils.quote(val_2) .. ",0)<cr>", -- RHS
+            {noremap = true} -- Options
+          })
+        end
       end
 
       -- n outer pairs
@@ -665,13 +674,16 @@ local function set_keymaps()
 
         -- Surround Replace
         for key_2, val_2 in pairs(map_keys) do
-          table.insert(keys, {
-            "n", -- Normal Mode
-            vim.g.surround_prefix .. "r" .. n .. key_1 .. key_2, -- LHS
-            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-                "," .. utils.quote(val_2) .. "," .. n - 1 .. ")<cr>", -- RHS
-            {noremap = true} -- Options
-          })
+          if key_1 ~= key_2 then
+            table.insert(keys, {
+              "n", -- Normal Mode
+              vim.g.surround_prefix .. "r" .. n .. key_1 .. key_2, -- LHS
+              "<cmd>lua require'surround'.surround_replace(" ..
+                  utils.quote(val_1) .. "," .. utils.quote(val_2) .. "," .. n -
+                  1 .. ")<cr>", -- RHS
+              {noremap = true} -- Options
+            })
+          end
         end
       end
     end
@@ -707,13 +719,15 @@ local function set_keymaps()
 
       -- Surround Replace
       for key_2, val_2 in pairs(map_keys) do
-        table.insert(keys, {
-          "n", -- Normal Mode
-          "cs" .. key_1 .. key_2, -- LHS
-          "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-              "," .. utils.quote(val_2) .. ")<cr>", -- RHS
-          {noremap = true} -- Options
-        })
+        if key_1 ~= key_2 then
+          table.insert(keys, {
+            "n", -- Normal Mode
+            "cs" .. key_1 .. key_2, -- LHS
+            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
+                "," .. utils.quote(val_2) .. ")<cr>", -- RHS
+            {noremap = true} -- Options
+          })
+        end
       end
     end
   end
