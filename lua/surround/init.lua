@@ -724,7 +724,7 @@ local function set_keymaps()
             "n", -- Normal Mode
             "cs" .. key_1 .. key_2, -- LHS
             "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-                "," .. utils.quote(val_2) .. ")<cr>", -- RHS
+                "," .. utils.quote(val_2) .. ", 0)<cr>", -- RHS
             {noremap = true} -- Options
           })
         end
