@@ -1,5 +1,6 @@
 --- a ux for surrounding character pairs
 -- @module surround
+local M = {}
 local parser = require "surround.parser"
 local utils = require "surround.utils"
 
@@ -9,7 +10,7 @@ local FUNCTION = 3
 local LINE = 1
 local COLUMN = 2
 
-local function surround_add_operator_mode()
+function M.surround_add_operator_mode()
   local char = vim.fn.nr2char(vim.fn.getchar())
   local map_keys = {b = "(", B = "{", f = "f"}
   for i, v in pairs(map_keys) do
@@ -155,7 +156,7 @@ end
 --- Surround Visual Selection.
 -- Adds a character surrounding the users visual selection
 -- @param char The character to surround with
-local function surround_add(char)
+function M.surround_add(char)
   local mode = vim.api.nvim_get_mode()["mode"]
 
   -- Get context
@@ -279,7 +280,7 @@ local function surround_add(char)
   vim.g.surround_last_cmd = {"surround_add", {char}}
 end
 
-local function surround_delete(char, n)
+function M.surround_delete(char, n)
   local cursor_position = vim.api.nvim_win_get_cursor(0)
   local start_line, end_line
   local top_offset = 0
@@ -344,9 +345,8 @@ local function surround_delete(char, n)
   vim.g.surround_last_cmd = {"surround_delete", {char}}
 end
 
-local function surround_replace(char_1, char_2, n, is_toggle, start_line,
-                                end_line, top_offset, cursor_position_relative,
-                                context)
+function M.surround_replace(char_1, char_2, n, is_toggle, start_line, end_line,
+                            top_offset, cursor_position_relative, context)
   local surround_pairs = vim.g.surround_pairs
 
   if not cursor_position_relative or context or start_line or end_line or
@@ -494,7 +494,7 @@ local function surround_replace(char_1, char_2, n, is_toggle, start_line,
   end
 end
 
-local function toggle_quotes()
+function M.toggle_quotes()
   local cursor_position = vim.api.nvim_win_get_cursor(0)
   local start_line, end_line, top_offset, _ =
       utils.get_line_numbers_by_offset(0)
@@ -521,7 +521,7 @@ local function toggle_quotes()
   end
 end
 
-local function toggle_brackets(n)
+function M.toggle_brackets(n)
   local cursor_position = vim.api.nvim_win_get_cursor(0)
   local start_line, end_line, top_offset, _ =
       utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
@@ -568,7 +568,7 @@ local function toggle_brackets(n)
   end
 end
 
-local function repeat_last()
+function M.repeat_last()
   local cmd = vim.g.surround_last_cmd
   if not cmd then
     print("No previous surround command found.")
@@ -584,7 +584,10 @@ local function repeat_last()
               ")")
 end
 
-local function set_keymaps()
+function M.set_keymaps()
+  local function map(mode, key, cmd)
+    vim.api.nvim_set_keymap(mode, key, cmd, {noremap = true})
+  end
   local map_keys = {b = "(", B = "{", f = "f"}
   local all_pairs = table.merge(vim.g.surround_pairs.nestable,
                                 vim.g.surround_pairs.linear)
@@ -593,96 +596,65 @@ local function set_keymaps()
     map_keys[pair[CLOSING]] = pair[CLOSING]
   end
 
-  local keys = {}
-  table.insert(keys, {
-    "n", "ys", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@",
-    {noremap = true}
-  })
+  map("n", "ys", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
   if (vim.g.surround_mappings_style == "sandwich") then
     -- Special Maps
     -- Cycle surrounding quotes
-    table.insert(keys, {
-      "n", vim.g.surround_prefix .. "tq",
-      "<cmd>lua require'surround'.toggle_quotes()<cr>", {noremap = true}
-    })
+    map("n", vim.g.surround_prefix .. "tq",
+        "<cmd>lua require'surround'.toggle_quotes()<cr>")
     -- Cycle surrounding brackets
-    table.insert(keys, {
-      "n", vim.g.surround_prefix .. "tb",
-      "<cmd>lua require'surround'.toggle_brackets(0)<cr>", {noremap = true}
-    })
+    map("n", vim.g.surround_prefix .. "tb",
+        "<cmd>lua require'surround'.toggle_brackets(0)<cr>")
     -- Cycle surrounding brackets
-    table.insert(keys, {
-      "n", vim.g.surround_prefix .. "tB",
-      "<cmd>lua require'surround'.toggle_brackets(0)<cr>", {noremap = true}
-    })
+    map("n", vim.g.surround_prefix .. "tB",
+        "<cmd>lua require'surround'.toggle_brackets(0)<cr>")
     for n = 2, 9 do
-      table.insert(keys, {
-        "n", vim.g.surround_prefix .. "t" .. n .. "b",
-        "<cmd>lua require'surround'.toggle_brackets(" .. n - 1 .. ")<cr>",
-        {noremap = true}
-      })
+      map("n", vim.g.surround_prefix .. "t" .. n .. "b",
+          "<cmd>lua require'surround'.toggle_brackets(" .. n - 1 .. ")<cr>")
       -- Cycle surrounding brackets
-      table.insert(keys, {
-        "n", vim.g.surround_prefix .. "tB",
-        "<cmd>lua require'surround'.toggle_brackets(" .. n - 1 .. ")<cr>",
-        {noremap = true}
-      })
+      map("n", vim.g.surround_prefix .. "tB",
+          "<cmd>lua require'surround'.toggle_brackets(" .. n - 1 .. ")<cr>")
     end
     -- Repeat Last surround command
-    table.insert(keys, {
-      "n", vim.g.surround_prefix .. vim.g.surround_prefix,
-      "<cmd>lua require'surround'.repeat_last()<cr>", {noremap = true}
-    })
+    map("n", vim.g.surround_prefix .. vim.g.surround_prefix,
+        "<cmd>lua require'surround'.repeat_last()<cr>")
 
     -- Main Maps
     for key_1, val_1 in pairs(map_keys) do
       -- Surround Add
-      table.insert(keys, {
-        "v", vim.g.surround_prefix .. key_1,
-        "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) ..
-            ")<cr>", {noremap = true}
-      })
+      map("v", vim.g.surround_prefix .. key_1,
+          "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) ..
+              ")<cr>")
 
       -- Surround Delete
-      table.insert(keys, {
-        "n", vim.g.surround_prefix .. "d" .. key_1,
-        "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
-            ",0)<cr>", {noremap = true}
-      })
+      map("n", vim.g.surround_prefix .. "d" .. key_1,
+          "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
+              ",0)<cr>")
 
       -- Surround Replace
       for key_2, val_2 in pairs(map_keys) do
         if key_1 ~= key_2 then
-          table.insert(keys, {
-            "n", -- Normal Mode
-            vim.g.surround_prefix .. "r" .. key_1 .. key_2, -- LHS
-            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-                "," .. utils.quote(val_2) .. ",0)<cr>", -- RHS
-            {noremap = true} -- Options
-          })
+          map("n", vim.g.surround_prefix .. "r" .. key_1 .. key_2, -- LHS
+          "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
+                  "," .. utils.quote(val_2) .. ",0)<cr>") -- RHS
         end
       end
 
       -- n outer pairs
       for n = 2, 9 do
         -- Surround Delete
-        table.insert(keys, {
-          "n", vim.g.surround_prefix .. "d" .. n .. key_1,
-          "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
-              "," .. n - 1 .. ")<cr>", {noremap = true}
-        })
+        map("n", vim.g.surround_prefix .. "d" .. n .. key_1,
+            "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
+                "," .. n - 1 .. ")<cr>")
 
         -- Surround Replace
         for key_2, val_2 in pairs(map_keys) do
           if key_1 ~= key_2 then
-            table.insert(keys, {
-              "n", -- Normal Mode
-              vim.g.surround_prefix .. "r" .. n .. key_1 .. key_2, -- LHS
-              "<cmd>lua require'surround'.surround_replace(" ..
-                  utils.quote(val_1) .. "," .. utils.quote(val_2) .. "," .. n -
-                  1 .. ")<cr>", -- RHS
-              {noremap = true} -- Options
-            })
+            map("n", -- Normal Mode
+            vim.g.surround_prefix .. "r" .. n .. key_1 .. key_2, -- LHS
+            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
+                    "," .. utils.quote(val_2) .. "," .. n - 1 .. ")<cr>" -- RHS
+            )
           end
         end
       end
@@ -690,43 +662,26 @@ local function set_keymaps()
   elseif (vim.g.surround_mappings_style == "surround") then
     -- Special Maps
     -- Cycle surrounding quotes
-    table.insert(keys, {
-      "n", "cq", "<cmd>lua require'surround'.toggle_quotes()<cr>",
-      {noremap = true}
-    })
-    -- Cycle surrounding brackets
-    -- table.insert(keys, {"n", "c[", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
-    -- Cycle surrounding brackets
-    -- table.insert(keys, {"n", "cB", "<cmd>lua require'surround'.toggle_brackets()<cr>", {noremap = true}})
-    -- Repeat Last surround command
-    -- table.insert(keys, {"n", "ss", "<cmd>lua require'surround'.repeat_last()<cr>", {noremap = true}})
+    map("n", "cq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
 
     -- Normal Mode Maps
     for key_1, val_1 in pairs(map_keys) do
       -- Surround Add
-      table.insert(keys, {
-        "v", "s" .. key_1,
-        "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) ..
-            ")<cr>", {noremap = true}
-      })
+      map("v", "s" .. key_1, "gv<cmd>lua require'surround'.surround_add(" ..
+              utils.quote(val_1) .. ")<cr>")
 
       -- Surround Delete
-      table.insert(keys, {
-        "n", "ds" .. key_1,
-        "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
-            ", 0)<cr>", {noremap = true}
-      })
+      map("n", "ds" .. key_1,
+          "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
+              ", 0)<cr>")
 
       -- Surround Replace
       for key_2, val_2 in pairs(map_keys) do
         if key_1 ~= key_2 then
-          table.insert(keys, {
-            "n", -- Normal Mode
-            "cs" .. key_1 .. key_2, -- LHS
-            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-                "," .. utils.quote(val_2) .. ", 0)<cr>", -- RHS
-            {noremap = true} -- Options
-          })
+          map("n", -- Normal Mode
+          "cs" .. key_1 .. key_2, -- LHS
+          "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
+                  "," .. utils.quote(val_2) .. ", 0)<cr>")
         end
       end
     end
@@ -735,25 +690,19 @@ local function set_keymaps()
   -- Insert Mode Ctrl-S mappings
   for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable,
                                     vim.g.surround_pairs.linear)) do
-    table.insert(keys, {
-      "i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>",
-      {noremap = true}
-    })
-    table.insert(keys, {
-      "i", "<c-s>" .. pair[OPENING] .. " ",
-      pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>", {noremap = true}
-    })
-    table.insert(keys, {
-      "i", "<c-s>" .. pair[OPENING] .. "<c-s>",
-      pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O", {noremap = true}
-    })
+    map("i", "<c-s>" .. pair[OPENING],
+        pair[OPENING] .. pair[CLOSING] .. "<left>")
+    map("i", "<c-s>" .. pair[OPENING] .. " ",
+        pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>")
+    map("i", "<c-s>" .. pair[OPENING] .. "<c-s>",
+        pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
   end
 
   -- Load Keymaps
-  utils.load_keymaps(keys)
+  -- utils.load_keymaps(keys)
 end
 
-local function load_autogroups(augroups)
+function M.load_autogroups(augroups)
   for group_name, group in pairs(augroups) do
     vim.cmd("augroup " .. group_name)
     vim.cmd("autocmd!")
@@ -764,7 +713,7 @@ local function load_autogroups(augroups)
   end
 end
 
-local function setup(opts)
+function M.setup(opts)
   local function set_default(opt, default)
     if vim.g["surround_" .. opt] ~= nil then
       return
@@ -783,7 +732,7 @@ local function setup(opts)
   })
   set_default("load_autogroups", false)
   if vim.g.surround_load_autogroups then
-    load_autogroups {
+    M.load_autogroups {
       surround_nvim = {
         {
           "FileType", "javascript,typescript",
@@ -796,16 +745,7 @@ local function setup(opts)
   set_default("quotes", {"'", '"'})
   set_default("brackets", {"(", "{", "["})
   set_default("load_keymaps", true)
-  if vim.g.surround_load_keymaps then set_keymaps() end
+  if vim.g.surround_load_keymaps then M.set_keymaps() end
 end
 
-return {
-  setup = setup,
-  surround_delete = surround_delete,
-  surround_replace = surround_replace,
-  surround_add = surround_add,
-  surround_add_operator_mode = surround_add_operator_mode,
-  toggle_quotes = toggle_quotes,
-  toggle_brackets = toggle_brackets,
-  repeat_last = repeat_last
-}
+return M
