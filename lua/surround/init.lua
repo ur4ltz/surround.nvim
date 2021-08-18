@@ -714,7 +714,7 @@ local function set_keymaps()
       table.insert(keys, {
         "n", "ds" .. key_1,
         "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
-            ")<cr>", {noremap = true}
+            ", 0)<cr>", {noremap = true}
       })
 
       -- Surround Replace
