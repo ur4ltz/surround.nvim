@@ -287,22 +287,24 @@ function M.surround_add()
   vim.g.surround_last_cmd = {"surround_add", {char}}
 end
 
-function M.surround_delete()
+function M.surround_delete(char)
   local cursor_position = vim.api.nvim_win_get_cursor(0)
   local start_line, end_line
   local top_offset = 0
   local surround_pairs = vim.g.surround_pairs
   local context
-  local char = vim.fn.nr2char(vim.fn.getchar())
   local n = 0
-  if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char) then
-    n = tonumber(char) - 1
+  if char == nil then
     char = vim.fn.nr2char(vim.fn.getchar())
-  end
-  for i, v in pairs(MAP_KEYS) do
-    if char == i then
-      char = v
-      break
+    if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char) then
+      n = tonumber(char) - 1
+      char = vim.fn.nr2char(vim.fn.getchar())
+    end
+    for i, v in pairs(MAP_KEYS) do
+      if char == i then
+        char = v
+        break
+      end
     end
   end
 
@@ -361,22 +363,26 @@ function M.surround_delete()
   print("Deleted surrounding ", char)
 
   -- Set Last CMD
-  vim.g.surround_last_cmd = {"surround_delete"}
+  vim.g.surround_last_cmd = {"surround_delete", {char}}
 end
 
 function M.surround_replace(is_toggle, start_line, end_line, top_offset,
-                            cursor_position_relative, context)
+                            cursor_position_relative, context, char_1, char_2)
   local surround_pairs = vim.g.surround_pairs
-  local char_1 = vim.fn.nr2char(vim.fn.getchar())
   local n = 0
-  if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char_1) then
-    n = tonumber(char_1) - 1
-    char_1 = vim.fn.nr2char(vim.fn.getchar())
-  end
-  local char_2 = vim.fn.nr2char(vim.fn.getchar())
-  for i, v in pairs(MAP_KEYS) do
-    if char_1 == i then char_1 = v end
-    if char_2 == i then char_2 = v end
+  if not is_toggle then
+    if not char_1 then
+      char_1 = vim.fn.nr2char(vim.fn.getchar())
+      if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char_1) then
+        n = tonumber(char_1) - 1
+        char_1 = vim.fn.nr2char(vim.fn.getchar())
+      end
+      char_2 = vim.fn.nr2char(vim.fn.getchar())
+      for i, v in pairs(MAP_KEYS) do
+        if char_1 == i then char_1 = v end
+        if char_2 == i then char_2 = v end
+      end
+    end
   end
 
   if not cursor_position_relative or context or start_line or end_line or
@@ -519,7 +525,12 @@ function M.surround_replace(is_toggle, start_line, end_line, top_offset,
   print("Replaced ", char_1, " with ", char_2)
 
   -- Set last_cmd if not a toggle triggered the function
-  if not is_toggle then vim.g.surround_last_cmd = {"surround_replace"} end
+  if not is_toggle then
+    vim.g.surround_last_cmd = {
+      "surround_replace",
+      {false, vim.NIL, vim.NIL, vim.NIL, vim.NIL, vim.NIL, char_1, char_2}
+    }
+  end
 end
 
 function M.toggle_quotes()
@@ -538,10 +549,12 @@ function M.toggle_quotes()
     if index then
       if i == #_pairs then
         M.surround_replace(true, start_line, end_line, top_offset,
-                           cursor_position_relative, context)
+                           cursor_position_relative, context, _pairs[#_pairs],
+                           _pairs[1])
       else
         M.surround_replace(true, start_line, end_line, top_offset,
-                           cursor_position_relative, context)
+                           cursor_position_relative, context, _pairs[i],
+                           _pairs[i + 1])
       end
       vim.g.surround_last_cmd = {"toggle_quotes", {}}
       return
@@ -583,12 +596,14 @@ function M.toggle_brackets(n)
 
   for i, val in ipairs(indexes) do
     if index == val then
-      if i < #_pairs then
+      if i == #_pairs then
         M.surround_replace(true, start_line, end_line, top_offset,
-                           cursor_position_relative, context)
+                           cursor_position_relative, context, _pairs[#_pairs],
+                           _pairs[1])
       else
         M.surround_replace(true, start_line, end_line, top_offset,
-                           cursor_position_relative, context)
+                           cursor_position_relative, context, _pairs[i],
+                           _pairs[i + 1])
       end
       vim.g.surround_last_cmd = {"toggle_brackets", {n}}
       return
@@ -605,7 +620,11 @@ function M.repeat_last()
   local fun = cmd[1]
   local args = cmd[2]
   for i, arg in pairs(args) do
-    if type(arg) == "string" then args[i] = utils.quote(arg) end
+    if type(arg) == "string" then
+      args[i] = utils.quote(arg)
+    else
+      args[i] = tostring(arg)
+    end
   end
   local str_args = table.concat(args, ",")
   vim.cmd("lua require'surround'." .. fun .. "(" .. utils.get(str_args, "") ..
@@ -629,13 +648,6 @@ function M.set_keymaps()
     -- Cycle surrounding brackets
     map("n", vim.g.surround_prefix .. "tB",
         "<cmd>lua require'surround'.toggle_brackets(0)<cr>")
-    for n = 2, 9 do
-      map("n", vim.g.surround_prefix .. "t" .. n .. "b",
-          "<cmd>lua require'surround'.toggle_brackets(" .. n - 1 .. ")<cr>")
-      -- Cycle surrounding brackets
-      map("n", vim.g.surround_prefix .. "tB",
-          "<cmd>lua require'surround'.toggle_brackets(" .. n - 1 .. ")<cr>")
-    end
     -- Repeat Last surround command
     map("n", vim.g.surround_prefix .. vim.g.surround_prefix,
         "<cmd>lua require'surround'.repeat_last()<cr>")
