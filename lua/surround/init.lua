@@ -288,9 +288,9 @@ function M.surround_delete()
   local surround_pairs = vim.g.surround_pairs
   local context
   local char = vim.fn.nr2char(vim.fn.getchar())
-  local n
+  local n = 0
   if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char) then
-    n = tonumber(char)
+    n = tonumber(char) - 1
     char = vim.fn.nr2char(vim.fn.getchar())
   end
 
@@ -356,12 +356,12 @@ function M.surround_replace(is_toggle, start_line, end_line, top_offset,
                             cursor_position_relative, context)
   local surround_pairs = vim.g.surround_pairs
   local char_1 = vim.fn.nr2char(vim.fn.getchar())
-  local n, char_2
+  local n = 0
   if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char_1) then
-    n = tonumber(char_1)
+    n = tonumber(char_1) - 1
     char_1 = vim.fn.nr2char(vim.fn.getchar())
   end
-  char_2 = vim.fn.nr2char(vim.fn.getchar())
+  local char_2 = vim.fn.nr2char(vim.fn.getchar())
 
   if not cursor_position_relative or context or start_line or end_line or
       top_offset then
