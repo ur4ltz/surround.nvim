@@ -1,7 +1,5 @@
 local function get(var, def)
-  if var == nil then
-    return def
-  end
+  if var == nil then return def end
   return var
 end
 
@@ -9,29 +7,19 @@ end
 
 function table.merge(t1, t2)
   local tmp = {}
-  for _, v in ipairs(t1) do
-    table.insert(tmp, v)
-  end
-  for _, v in ipairs(t2) do
-    table.insert(tmp, v)
-  end
+  for _, v in ipairs(t1) do table.insert(tmp, v) end
+  for _, v in ipairs(t2) do table.insert(tmp, v) end
   return tmp
 end
 
 function table.contains(tbl, string)
-  for _, v in ipairs(tbl) do
-    if v == string then
-      return true
-    end
-  end
+  for _, v in ipairs(tbl) do if v == string then return true end end
   return false
 end
 
 function table.slice(tbl, first, last, step)
   local sliced = {}
-  for i = first or 1, last or #tbl, step or 1 do
-    sliced[#sliced + 1] = tbl[i]
-  end
+  for i = first or 1, last or #tbl, step or 1 do sliced[#sliced + 1] = tbl[i] end
   return sliced
 end
 
@@ -48,11 +36,8 @@ end
 function string.isalnum(inputstr, includes)
   for i = 1, #inputstr do
     local char = inputstr:sub(i, i)
-    if
-      not (("A" <= char and char <= "Z") or ("a" <= char and char <= "z") or
-        ("0" <= char and char <= "9") or
-        table.contains(get(includes, {}), char))
-     then
+    if not (("A" <= char and char <= "Z") or ("a" <= char and char <= "z") or
+        ("0" <= char and char <= "9") or table.contains(get(includes, {}), char)) then
       return false
     end
   end
@@ -60,9 +45,7 @@ function string.isalnum(inputstr, includes)
 end
 
 function string.split(inputstr, sep)
-  if sep == nil then
-    sep = "%s"
-  end
+  if sep == nil then sep = "%s" end
   local t = {}
   local element = ""
   for i = 1, #inputstr do
@@ -74,27 +57,23 @@ function string.split(inputstr, sep)
       element = ""
     end
   end
-  if #element > 0 then
-    table.insert(t, element)
-  end
+  if #element > 0 then table.insert(t, element) end
   return t
 end
 
 function string.insert(inputstr, index, sub_str)
-  return inputstr:sub(1, index - 1) ..
-    sub_str .. inputstr:sub(index, #inputstr + 1)
+  return inputstr:sub(1, index - 1) .. sub_str ..
+             inputstr:sub(index, #inputstr + 1)
 end
 
 function string.remove(inputstr, from, to)
-  if (to == nil) then
-    to = from + 1
-  end
+  if (to == nil) then to = from + 1 end
   return inputstr:sub(1, from - 1) .. inputstr:sub(to, #inputstr)
 end
 
 function string.set(inputstr, index, sub_str)
-  return inputstr:sub(1, index - 1) ..
-    sub_str .. inputstr:sub(index + 1, #inputstr)
+  return inputstr:sub(1, index - 1) .. sub_str ..
+             inputstr:sub(index + 1, #inputstr)
 end
 
 local function get_visual_pos()
@@ -118,9 +97,7 @@ local function get_operator_pos()
 end
 
 local function tprint(tbl, indent)
-  if not indent then
-    indent = 0
-  end
+  if not indent then indent = 0 end
   for k, v in pairs(tbl) do
     local formatting = string.rep("  ", indent) .. k .. ": "
     if type(v) == "table" then
@@ -136,13 +113,7 @@ end
 
 local function user_input(message)
   vim.api.nvim_call_function("inputsave", {})
-  local val =
-    vim.api.nvim_call_function(
-    "input",
-    {
-      message
-    }
-  )
+  local val = vim.api.nvim_call_function("input", {message})
   vim.api.nvim_call_function("inputrestore", {})
   vim.api.nvim_command('echo "\r                          \r"')
   return val
@@ -156,9 +127,7 @@ end
 
 local function get_nth_element(tbls, n)
   local elements = {}
-  for _, tbl in ipairs(tbls) do
-    table.insert(elements, tbl[n])
-  end
+  for _, tbl in ipairs(tbls) do table.insert(elements, tbl[n]) end
   return elements
 end
 
@@ -184,17 +153,21 @@ end
 
 local function table_keys(t)
   local keys = {}
-  for k, _ in pairs(t) do
-    table.insert(keys, k)
-  end
+  for k, _ in pairs(t) do table.insert(keys, k) end
   return keys
 end
 
-local function highlight(start_pos, end_pos, duration)
+local function highlight(start_pos, end_pos, duration) end
+
+local function has_value(tab, val)
+  for index, value in ipairs(tab) do if value == val then return true end end
+
+  return false
 end
 
 return {
   tprint = tprint,
+  has_value = has_value,
   user_input = user_input,
   get_line_numbers_by_offset = get_line_numbers_by_offset,
   table_keys = table_keys,

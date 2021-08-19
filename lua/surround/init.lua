@@ -156,7 +156,8 @@ end
 --- Surround Visual Selection.
 -- Adds a character surrounding the users visual selection
 -- @param char The character to surround with
-function M.surround_add(char)
+function M.surround_add()
+  local char = vim.fn.nr2char(vim.fn.getchar())
   local mode = vim.api.nvim_get_mode()["mode"]
 
   -- Get context
@@ -280,12 +281,18 @@ function M.surround_add(char)
   vim.g.surround_last_cmd = {"surround_add", {char}}
 end
 
-function M.surround_delete(char, n)
+function M.surround_delete()
   local cursor_position = vim.api.nvim_win_get_cursor(0)
   local start_line, end_line
   local top_offset = 0
   local surround_pairs = vim.g.surround_pairs
   local context
+  local char = vim.fn.nr2char(vim.fn.getchar())
+  local n
+  if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char) then
+    n = tonumber(char)
+    char = vim.fn.nr2char(vim.fn.getchar())
+  end
 
   -- Get context
   if table.contains(vim.tbl_flatten(surround_pairs.linear), char) then
@@ -345,9 +352,16 @@ function M.surround_delete(char, n)
   vim.g.surround_last_cmd = {"surround_delete", {char}}
 end
 
-function M.surround_replace(char_1, char_2, n, is_toggle, start_line, end_line,
-                            top_offset, cursor_position_relative, context)
+function M.surround_replace(is_toggle, start_line, end_line, top_offset,
+                            cursor_position_relative, context)
   local surround_pairs = vim.g.surround_pairs
+  local char_1 = vim.fn.nr2char(vim.fn.getchar())
+  local n, char_2
+  if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char_1) then
+    n = tonumber(char_1)
+    char_1 = vim.fn.nr2char(vim.fn.getchar())
+  end
+  char_2 = vim.fn.nr2char(vim.fn.getchar())
 
   if not cursor_position_relative or context or start_line or end_line or
       top_offset then
@@ -620,71 +634,26 @@ function M.set_keymaps()
         "<cmd>lua require'surround'.repeat_last()<cr>")
 
     -- Main Maps
-    for key_1, val_1 in pairs(map_keys) do
-      -- Surround Add
-      map("v", vim.g.surround_prefix .. key_1,
-          "gv<cmd>lua require'surround'.surround_add(" .. utils.quote(val_1) ..
-              ")<cr>")
-
-      -- Surround Delete
-      map("n", vim.g.surround_prefix .. "d" .. key_1,
-          "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
-              ",0)<cr>")
-
-      -- Surround Replace
-      for key_2, val_2 in pairs(map_keys) do
-        if key_1 ~= key_2 then
-          map("n", vim.g.surround_prefix .. "r" .. key_1 .. key_2, -- LHS
-          "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-                  "," .. utils.quote(val_2) .. ",0)<cr>") -- RHS
-        end
-      end
-
-      -- n outer pairs
-      for n = 2, 9 do
-        -- Surround Delete
-        map("n", vim.g.surround_prefix .. "d" .. n .. key_1,
-            "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
-                "," .. n - 1 .. ")<cr>")
-
-        -- Surround Replace
-        for key_2, val_2 in pairs(map_keys) do
-          if key_1 ~= key_2 then
-            map("n", -- Normal Mode
-            vim.g.surround_prefix .. "r" .. n .. key_1 .. key_2, -- LHS
-            "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-                    "," .. utils.quote(val_2) .. "," .. n - 1 .. ")<cr>" -- RHS
-            )
-          end
-        end
-      end
-    end
+    -- Surround Add
+    map("v", vim.g.surround_prefix,
+        "gv<cmd>lua require'surround'.surround_add()<cr>")
+    -- Surround Delete
+    map("n", vim.g.surround_prefix .. "d",
+        "<cmd>lua require'surround'.surround_delete()<cr>")
+    -- Surround Replace
+    map("n", vim.g.surround_prefix .. "r",
+        "<cmd>lua require'surround'.surround_replace()<cr>")
   elseif (vim.g.surround_mappings_style == "surround") then
     -- Special Maps
     -- Cycle surrounding quotes
     map("n", "cq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
-
     -- Normal Mode Maps
-    for key_1, val_1 in pairs(map_keys) do
-      -- Surround Add
-      map("v", "s" .. key_1, "gv<cmd>lua require'surround'.surround_add(" ..
-              utils.quote(val_1) .. ")<cr>")
-
-      -- Surround Delete
-      map("n", "ds" .. key_1,
-          "<cmd>lua require'surround'.surround_delete(" .. utils.quote(val_1) ..
-              ", 0)<cr>")
-
-      -- Surround Replace
-      for key_2, val_2 in pairs(map_keys) do
-        if key_1 ~= key_2 then
-          map("n", -- Normal Mode
-          "cs" .. key_1 .. key_2, -- LHS
-          "<cmd>lua require'surround'.surround_replace(" .. utils.quote(val_1) ..
-                  "," .. utils.quote(val_2) .. ", 0)<cr>")
-        end
-      end
-    end
+    -- Surround Add
+    map("v", "s", "gv<cmd>lua require'surround'.surround_add()<cr>")
+    -- Surround Delete
+    map("n", "ds", "<cmd>lua require'surround'.surround_delete()<cr>")
+    -- Surround Replace
+    map("n", "cs", "<cmd>lua require'surround'.surround_replace()<cr>")
   end
 
   -- Insert Mode Ctrl-S mappings
@@ -697,9 +666,6 @@ function M.set_keymaps()
     map("i", "<c-s>" .. pair[OPENING] .. "<c-s>",
         pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
   end
-
-  -- Load Keymaps
-  -- utils.load_keymaps(keys)
 end
 
 function M.load_autogroups(augroups)
