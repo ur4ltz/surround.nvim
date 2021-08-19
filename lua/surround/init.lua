@@ -23,11 +23,11 @@ function M.surround_add_operator_mode()
   -- Get context
   local start_line, start_col, end_line, end_col = utils.get_operator_pos()
   local mode
-  if start_line == end_line then
-    mode = "v"
-  else
-    mode = "V"
-  end
+  -- if start_line == end_line then
+  mode = "v"
+  -- else
+  -- mode = "V"
+  -- end
   local context = vim.api.nvim_call_function("getline", {start_line, end_line})
   local id = vim.api.nvim_buf_add_highlight(0, 0, "CursorLine", start_line - 1,
                                             start_col - 1, #context[1] - 1)
