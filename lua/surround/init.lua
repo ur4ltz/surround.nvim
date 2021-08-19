@@ -361,7 +361,7 @@ function M.surround_delete()
   print("Deleted surrounding ", char)
 
   -- Set Last CMD
-  vim.g.surround_last_cmd = {"surround_delete", {char}}
+  vim.g.surround_last_cmd = {"surround_delete"}
 end
 
 function M.surround_replace(is_toggle, start_line, end_line, top_offset,
@@ -519,9 +519,7 @@ function M.surround_replace(is_toggle, start_line, end_line, top_offset,
   print("Replaced ", char_1, " with ", char_2)
 
   -- Set last_cmd if not a toggle triggered the function
-  if not is_toggle then
-    vim.g.surround_last_cmd = {"surround_replace", {char_1, char_2, n}}
-  end
+  if not is_toggle then vim.g.surround_last_cmd = {"surround_replace"} end
 end
 
 function M.toggle_quotes()
@@ -539,11 +537,11 @@ function M.toggle_quotes()
     index = parser.get_surround_pair(context, cursor_position_relative, pair)
     if index then
       if i == #_pairs then
-        surround_replace(_pairs[i], _pairs[1], 0, true, start_line, end_line,
-                         top_offset, cursor_position_relative, context)
+        M.surround_replace(true, start_line, end_line, top_offset,
+                           cursor_position_relative, context)
       else
-        surround_replace(_pairs[i], _pairs[i + 1], 0, true, start_line,
-                         end_line, top_offset, cursor_position_relative, context)
+        M.surround_replace(true, start_line, end_line, top_offset,
+                           cursor_position_relative, context)
       end
       vim.g.surround_last_cmd = {"toggle_quotes", {}}
       return
@@ -586,11 +584,11 @@ function M.toggle_brackets(n)
   for i, val in ipairs(indexes) do
     if index == val then
       if i < #_pairs then
-        surround_replace(_pairs[i], _pairs[i + 1], n, true, start_line,
-                         end_line, top_offset, cursor_position_relative, context)
+        M.surround_replace(true, start_line, end_line, top_offset,
+                           cursor_position_relative, context)
       else
-        surround_replace(_pairs[i], _pairs[1], n, true, start_line, end_line,
-                         top_offset, cursor_position_relative, context)
+        M.surround_replace(true, start_line, end_line, top_offset,
+                           cursor_position_relative, context)
       end
       vim.g.surround_last_cmd = {"toggle_brackets", {n}}
       return
