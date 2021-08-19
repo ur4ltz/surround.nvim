@@ -9,11 +9,11 @@ local CLOSING = 2
 local FUNCTION = 3
 local LINE = 1
 local COLUMN = 2
+local MAP_KEYS = {b = "(", B = "{", f = "f"}
 
 function M.surround_add_operator_mode()
   local char = vim.fn.nr2char(vim.fn.getchar())
-  local map_keys = {b = "(", B = "{", f = "f"}
-  for i, v in pairs(map_keys) do
+  for i, v in pairs(MAP_KEYS) do
     if char == i then
       char = v
       break
@@ -32,10 +32,10 @@ function M.surround_add_operator_mode()
   local id = vim.api.nvim_buf_add_highlight(0, 0, "CursorLine", start_line - 1,
                                             start_col - 1, #context[1] - 1)
   vim.api.nvim_buf_clear_namespace(0, id, start_line - 1, end_line - 1)
-  local hi_args = {0, id, "CursorLine"}
-  for line = start_line + 1, end_line do
-    --
-  end
+  -- local hi_args = {0, id, "CursorLine"}
+  -- for line = start_line + 1, end_line do
+  --   --
+  -- end
 
   -- Get the pair to add
   local surround_pairs = vim.g.surround_pairs
@@ -158,6 +158,12 @@ end
 -- @param char The character to surround with
 function M.surround_add()
   local char = vim.fn.nr2char(vim.fn.getchar())
+  for i, v in pairs(MAP_KEYS) do
+    if char == i then
+      char = v
+      break
+    end
+  end
   local mode = vim.api.nvim_get_mode()["mode"]
 
   -- Get context
@@ -293,6 +299,12 @@ function M.surround_delete()
     n = tonumber(char) - 1
     char = vim.fn.nr2char(vim.fn.getchar())
   end
+  for i, v in pairs(MAP_KEYS) do
+    if char == i then
+      char = v
+      break
+    end
+  end
 
   -- Get context
   if table.contains(vim.tbl_flatten(surround_pairs.linear), char) then
@@ -362,6 +374,10 @@ function M.surround_replace(is_toggle, start_line, end_line, top_offset,
     char_1 = vim.fn.nr2char(vim.fn.getchar())
   end
   local char_2 = vim.fn.nr2char(vim.fn.getchar())
+  for i, v in pairs(MAP_KEYS) do
+    if char_1 == i then char_1 = v end
+    if char_2 == i then char_2 = v end
+  end
 
   if not cursor_position_relative or context or start_line or end_line or
       top_offset then
@@ -601,13 +617,6 @@ end
 function M.set_keymaps()
   local function map(mode, key, cmd)
     vim.api.nvim_set_keymap(mode, key, cmd, {noremap = true})
-  end
-  local map_keys = {b = "(", B = "{", f = "f"}
-  local all_pairs = table.merge(vim.g.surround_pairs.nestable,
-                                vim.g.surround_pairs.linear)
-  for _, pair in ipairs(all_pairs) do
-    map_keys[pair[OPENING]] = pair[OPENING]
-    map_keys[pair[CLOSING]] = pair[CLOSING]
   end
 
   map("n", "ys", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
