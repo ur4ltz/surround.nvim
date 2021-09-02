@@ -636,9 +636,9 @@ function M.set_keymaps()
     vim.api.nvim_set_keymap(mode, key, cmd, {noremap = true})
   end
 
-  map("n", "ys", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
   if (vim.g.surround_mappings_style == "sandwich") then
     -- Special Maps
+    map("n", "sa", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
     -- Cycle surrounding quotes
     map("n", vim.g.surround_prefix .. "tq",
         "<cmd>lua require'surround'.toggle_quotes()<cr>")
@@ -664,6 +664,7 @@ function M.set_keymaps()
         "<cmd>lua require'surround'.surround_replace()<cr>")
   elseif (vim.g.surround_mappings_style == "surround") then
     -- Special Maps
+    map("n", "ys", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
     -- Cycle surrounding quotes
     map("n", "cq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
     -- Normal Mode Maps
