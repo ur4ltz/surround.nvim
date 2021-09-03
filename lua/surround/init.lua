@@ -12,7 +12,7 @@ local COLUMN = 2
 local MAP_KEYS = {b = "(", B = "{", f = "f"}
 
 function M.surround_add_operator_mode()
-  local char = vim.fn.nr2char(vim.fn.getchar())
+  local char = vim.fn.getcharstr()
   for i, v in pairs(MAP_KEYS) do
     if char == i then
       char = v
@@ -157,7 +157,7 @@ end
 -- Adds a character surrounding the users visual selection
 -- @param char The character to surround with
 function M.surround_add()
-  local char = vim.fn.nr2char(vim.fn.getchar())
+  local char = vim.fn.getcharstr()
   for i, v in pairs(MAP_KEYS) do
     if char == i then
       char = v
@@ -295,10 +295,10 @@ function M.surround_delete(char)
   local context
   local n = 0
   if char == nil then
-    char = vim.fn.nr2char(vim.fn.getchar())
+    char = vim.fn.getcharstr()
     if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char) then
       n = tonumber(char) - 1
-      char = vim.fn.nr2char(vim.fn.getchar())
+      char = vim.fn.getcharstr()
     end
     for i, v in pairs(MAP_KEYS) do
       if char == i then
@@ -372,12 +372,12 @@ function M.surround_replace(is_toggle, start_line, end_line, top_offset,
   local n = 0
   if not is_toggle then
     if not char_1 then
-      char_1 = vim.fn.nr2char(vim.fn.getchar())
+      char_1 = vim.fn.getcharstr()
       if utils.has_value({"2", "3", "4", "5", "6", "7", "8", "9"}, char_1) then
         n = tonumber(char_1) - 1
-        char_1 = vim.fn.nr2char(vim.fn.getchar())
+        char_1 = vim.fn.getcharstr()
       end
-      char_2 = vim.fn.nr2char(vim.fn.getchar())
+      char_2 = vim.fn.getcharstr()
       for i, v in pairs(MAP_KEYS) do
         if char_1 == i then char_1 = v end
         if char_2 == i then char_2 = v end
