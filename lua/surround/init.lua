@@ -48,6 +48,8 @@ function M.surround_add_operator_mode()
     end
   end
 
+  if char_pairs == nil then return end
+
   local space = ""
   if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char ==
       char_pairs[CLOSING] then space = " " end
@@ -180,6 +182,7 @@ function M.surround_add()
       break
     end
   end
+  if char_pairs == nil then return end
 
   local space = ""
   if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char ==
@@ -449,6 +452,7 @@ function M.surround_replace(is_toggle, start_line, end_line, top_offset,
         break
       end
     end
+    if char_2_pairs == nil then return end
 
     -- Replace surrounding brackets with char_2 and remove function
     context[indexes[OPENING][LINE]] = string.set(
@@ -504,6 +508,7 @@ function M.surround_replace(is_toggle, start_line, end_line, top_offset,
         break
       end
     end
+    if char_2_pairs == nil then return end
     -- Replace char_1 with char_2
     context[indexes[OPENING][LINE]] = string.set(
                                           context[indexes[OPENING][LINE]],
