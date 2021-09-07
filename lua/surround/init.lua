@@ -643,7 +643,7 @@ function M.set_keymaps()
 
   if (vim.g.surround_mappings_style == "sandwich") then
     -- Special Maps
-    map("n", "sa", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
+    map("n", vim.g.surround_prefix .. "a", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
     -- Cycle surrounding quotes
     map("n", vim.g.surround_prefix .. "tq",
         "<cmd>lua require'surround'.toggle_quotes()<cr>")
