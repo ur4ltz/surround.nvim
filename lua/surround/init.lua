@@ -661,7 +661,7 @@ function M.set_keymaps()
     -- Main Maps
     -- Surround Add
     map("v", vim.g.surround_prefix,
-        "gv<cmd>lua require'surround'.surround_add()<cr>")
+        "<esc>gv<cmd>lua require'surround'.surround_add()<cr>")
     -- Surround Delete
     map("n", vim.g.surround_prefix .. "d",
         "<cmd>lua require'surround'.surround_delete()<cr>")
