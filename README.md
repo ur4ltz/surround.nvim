@@ -79,6 +79,7 @@ use {
 - `load_keymaps`: whether to load inbuilt keymaps or not. `(default: true)`
 - `quotes`: an array of items to be considered as quotes while cycling through them. `(default: ["'", '"'])`
 - `brackets`: an array of items to be considered as brackets while cycling through them. `(default: ["(", "{", "["])`
+- `map_insert_mode`: whether to load insert mode mappings or not. `(default: true)`
 
 ## Caveats
 

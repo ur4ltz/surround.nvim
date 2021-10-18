@@ -643,7 +643,8 @@ function M.set_keymaps()
 
   if (vim.g.surround_mappings_style == "sandwich") then
     -- Special Maps
-    map("n", vim.g.surround_prefix .. "a", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
+    map("n", vim.g.surround_prefix .. "a",
+        "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
     -- Cycle surrounding quotes
     map("n", vim.g.surround_prefix .. "tq",
         "<cmd>lua require'surround'.toggle_quotes()<cr>")
@@ -681,15 +682,17 @@ function M.set_keymaps()
     map("n", "cs", "<cmd>lua require'surround'.surround_replace()<cr>")
   end
 
-  -- Insert Mode Ctrl-S mappings
-  for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable,
-                                    vim.g.surround_pairs.linear)) do
-    map("i", "<c-s>" .. pair[OPENING],
-        pair[OPENING] .. pair[CLOSING] .. "<left>")
-    map("i", "<c-s>" .. pair[OPENING] .. " ",
-        pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>")
-    map("i", "<c-s>" .. pair[OPENING] .. "<c-s>",
-        pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
+  if vim.g.surround_map_insert_mode then
+    -- Insert Mode Ctrl-S mappings
+    for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable,
+                                      vim.g.surround_pairs.linear)) do
+      map("i", "<c-s>" .. pair[OPENING],
+          pair[OPENING] .. pair[CLOSING] .. "<left>")
+      map("i", "<c-s>" .. pair[OPENING] .. " ",
+          pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>")
+      map("i", "<c-s>" .. pair[OPENING] .. "<c-s>",
+          pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
+    end
   end
 end
 
@@ -716,6 +719,7 @@ function M.setup(opts)
   end
   vim.cmd("highlight SurroundFeedback cterm=reverse gui=reverse")
   set_default("mappings_style", "sandwich")
+  set_default("map_insert_mode", true)
   set_default("prefix", "s")
   set_default("pairs", {
     nestable = {{"(", ")"}, {"[", "]"}, {"{", "}"}},
