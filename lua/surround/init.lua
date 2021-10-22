@@ -675,7 +675,7 @@ function M.set_keymaps()
     map("n", "cq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
     -- Normal Mode Maps
     -- Surround Add
-    map("v", "s", "gv<cmd>lua require'surround'.surround_add()<cr>")
+    map("v", "s", "<esc>gv<cmd>lua require'surround'.surround_add()<cr>")
     -- Surround Delete
     map("n", "ds", "<cmd>lua require'surround'.surround_delete()<cr>")
     -- Surround Replace
