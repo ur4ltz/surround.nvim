@@ -81,6 +81,24 @@ use {
 - `brackets`: an array of items to be considered as brackets while cycling through them. `(default: ["(", "{", "["])`
 - `map_insert_mode`: whether to load insert mode mappings or not. `(default: true)`
 
+### or pass a lua table to the setup function
+
+```lua
+require"surround".setup {
+  context_offset = 100,
+  load_autogroups = false,
+  mappings_style = "sandwich",
+  map_insert_mode = true,
+  quotes = {"'", '"'},
+  brackets = {"(", '{', '['},
+  pairs = {
+    nestable = {{"(", ")"}, {"[", "]"}, {"{", "}"}},
+    linear = {{"'", "'"}, {"`", "`"}, {'"', '"'}}
+  },
+  prefix = "s"
+}
+```
+
 ## Caveats
 
 1. Only supports neovim and always will because it's written in lua which is neovim exclusive.
