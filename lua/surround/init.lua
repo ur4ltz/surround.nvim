@@ -657,7 +657,7 @@ end
 
 function M.set_keymaps()
 	local function map(mode, key, cmd)
-		vim.api.nvim_set_keymap(mode, key, cmd, { noremap = true, silent = true, expr = true })
+		vim.api.nvim_set_keymap(mode, key, cmd, { noremap = true })
 	end
 
 	if vim.g.surround_mappings_style == "sandwich" then
