@@ -210,7 +210,7 @@ function M.surround_add()
 			if #context == 1 then
 				-- Handle single line
 				local line = context[1]
-				line = string.insert(line, end_col, space .. char_pairs[CLOSING])
+				line = string.insert(line, end_col + 1, space .. char_pairs[CLOSING])
 				line = string.insert(line, start_col, char_pairs[OPENING] .. space)
 				context[1] = line
 			else
