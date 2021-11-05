@@ -13,7 +13,7 @@
 1. Provides key mapping to add surrounding characters.( visually select then press `s<char>` or press `sa{motion}{char}`)
 2. Provides key mapping to replace surrounding characters.( `sr<from><to>` )
 3. Provides key mapping to delete surrounding characters.( `sd<char>` )
-4. `ss` repeats last surround command.
+4. `ss` repeats last surround command. (Doesn't work with add)
 
 #### Normal Mode - Surround Mode
 
