@@ -46,8 +46,14 @@ function M.surround_add_operator_mode()
 	end
 
 	local space = ""
-	if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[CLOSING] then
-		space = " "
+	if vim.g.surround_space_on_closing_char then
+		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[CLOSING] then
+			space = " "
+		end
+	else
+		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[OPENING] then
+			space = " "
+		end
 	end
 
 	-- Add surrounding characters
@@ -178,8 +184,14 @@ function M.surround_add()
 	end
 
 	local space = ""
-	if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[CLOSING] then
-		space = " "
+	if vim.g.surround_space_on_closing_char then
+		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[CLOSING] then
+			space = " "
+		end
+	else
+		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[OPENING] then
+			space = " "
+		end
 	end
 
 	-- Add surrounding characters
@@ -745,6 +757,7 @@ function M.setup(opts)
 		})
 	end
 	set_default("context_offset", 100)
+	set_default("space_on_closing_char", false)
 	set_default("quotes", { "'", '"' })
 	set_default("brackets", { "(", "{", "[" })
 	set_default("load_keymaps", true)

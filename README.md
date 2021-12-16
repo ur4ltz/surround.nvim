@@ -80,6 +80,7 @@ use {
 - `quotes`: an array of items to be considered as quotes while cycling through them. `(default: ["'", '"'])`
 - `brackets`: an array of items to be considered as brackets while cycling through them. `(default: ["(", "{", "["])`
 - `map_insert_mode`: whether to load insert mode mappings or not. `(default: true)`
+- `space_on_closing_char`: if the closing char should add surround space rather than the opening char. `(default: false)`
 
 ### or pass a lua table to the setup function
 
@@ -91,6 +92,7 @@ require"surround".setup {
   map_insert_mode = true,
   quotes = {"'", '"'},
   brackets = {"(", '{', '['},
+  space_on_closing_char = false,
   pairs = {
     nestable = {{"(", ")"}, {"[", "]"}, {"{", "}"}},
     linear = {{"'", "'"}, {"`", "`"}, {'"', '"'}}
