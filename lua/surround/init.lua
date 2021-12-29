@@ -741,7 +741,7 @@ function M.setup(opts)
 	set_default("map_insert_mode", true)
 	set_default("prefix", "s")
 	set_default("pairs", {
-		nestable = { { "(", ")" }, { "[", "]" }, { "{", "}" } },
+		nestable = { { "(", ")" }, { "[", "]" }, { "{", "}" }, { "<", ">" } },
 		linear = { { "'", "'" }, { "`", "`" }, { '"', '"' } },
 	})
 	set_default("load_autogroups", false)
