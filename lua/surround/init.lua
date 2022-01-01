@@ -73,7 +73,7 @@ function M.surround_add(op_mode, surrounding, motion)
 			break
 		end
 	end
-	if char_pairs == nil then
+	if char_pairs == nil and char ~= "f" then
 		return
 	end
 
@@ -260,7 +260,8 @@ function M.surround_replace(
 	cursor_position_relative,
 	context,
 	char_1,
-	char_2
+	char_2,
+	func_name
 )
 	local surround_pairs = vim.g.surround_pairs
 	local n = 0
@@ -311,19 +312,21 @@ function M.surround_replace(
 		end
 
 		-- Get new funcname
-		local func_name = utils.user_input("funcname: ")
+		if not func_name then
+			func_name = utils.user_input("funcname: ")
+		end
 
 		-- Delete old function
 		context[indexes[FUNCTION][LINE]] = string.remove(
 			context[indexes[FUNCTION][LINE]],
-			indexes[1][COLUMN],
-			indexes[2][COLUMN]
+			indexes[FUNCTION][COLUMN],
+			indexes[OPENING][COLUMN]
 		)
 
 		-- Add new function
 		context[indexes[FUNCTION][LINE]] = string.insert(
 			context[indexes[FUNCTION][LINE]],
-			indexes[1][COLUMN],
+			indexes[FUNCTION][COLUMN],
 			func_name
 		)
 	elseif char_1 == "f" then
@@ -374,7 +377,9 @@ function M.surround_replace(
 		end
 
 		-- Get new funcname
-		local func_name = utils.user_input("funcname: ")
+		if not func_name then
+			func_name = utils.user_input("funcname: ")
+		end
 		context[indexes[OPENING][LINE]] = string.set(context[indexes[OPENING][LINE]], indexes[OPENING][COLUMN], "(")
 		context[indexes[CLOSING][LINE]] = string.set(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN], ")")
 		context[indexes[OPENING][LINE]] = string.insert(
@@ -429,7 +434,7 @@ function M.surround_replace(
 	if not is_toggle then
 		vim.g.surround_last_cmd = {
 			"surround_replace",
-			{ false, vim.NIL, vim.NIL, vim.NIL, vim.NIL, vim.NIL, char_1, char_2 },
+			{ false, vim.NIL, vim.NIL, vim.NIL, vim.NIL, vim.NIL, char_1, char_2, func_name },
 		}
 	end
 end
