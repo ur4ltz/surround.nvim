@@ -11,7 +11,11 @@ local LINE = 1
 local COLUMN = 2
 local MAP_KEYS = { b = "(", B = "{", f = "f" }
 
-function M.surround_add_operator_mode()
+--- Surround selection.
+-- Adds a character surrounding the user's selection in either visual mode or operator pending mode.
+-- @param[opt=false] op_mode Boolean value indicating that the function was called from operator pending mode
+function M.surround_add(op_mode)
+	op_mode = op_mode or false
 	local char = vim.fn.nr2char(vim.fn.getchar())
 	for i, v in pairs(MAP_KEYS) do
 		if char == i then
@@ -20,153 +24,20 @@ function M.surround_add_operator_mode()
 		end
 	end
 
-	-- Get context
-	local start_line, start_col, end_line, end_col = utils.get_operator_pos()
-	local context = vim.api.nvim_call_function("getline", { start_line, end_line })
-	local mode
-	-- if start_line == end_line then
-	mode = "v"
-	-- else
-	-- mode = "V"
-	-- end
-
-	-- Get the pair to add
-	local surround_pairs = vim.g.surround_pairs
-	local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
-	local char_pairs
-	for _, pair in ipairs(all_pairs) do
-		if table.contains(pair, char) then
-			char_pairs = pair
-			break
-		end
-	end
-
-	if char_pairs == nil then
-		return
-	end
-
-	local space = ""
-	if vim.g.surround_space_on_closing_char then
-		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[CLOSING] then
-			space = " "
-		end
+	-- mode_correction is adjusting for differences in how vim
+	-- places its markers for visual selection and motions
+	local mode, mode_correction
+	local start_line, start_col, end_line, end_col
+	if op_mode then
+		-- set visual mode when called as operator pending mode
+		mode = "v"
+		mode_correction = 0
+		start_line, start_col, end_line, end_col = utils.get_operator_pos()
 	else
-		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[OPENING] then
-			space = " "
-		end
+		mode = vim.api.nvim_get_mode()["mode"]
+		mode_correction = 1
+		start_line, start_col, end_line, end_col = utils.get_visual_pos()
 	end
-
-	-- Add surrounding characters
-	if char == "f" then
-		-- Handle Functions
-		local func_name = utils.user_input("funcname: ")
-		if mode == "v" then
-			-- Visual Mode
-			if #context == 1 then
-				-- Handle single line
-				local line = context[1]
-				line = string.insert(line, end_col, space .. ")")
-				line = string.insert(line, start_col, func_name .. "(" .. space)
-				context[1] = line
-			else
-				-- Handle multiple lines
-				local first_line = context[1]
-				local last_line = context[#context]
-				last_line = string.insert(last_line, end_col + 1, space .. ")")
-				first_line = string.insert(first_line, start_col, func_name .. "(" .. space)
-				context[1] = first_line
-				context[#context] = last_line
-			end
-		end
-	else
-		if mode == "v" then
-			-- Visual Mode
-			if #context == 1 then
-				-- Handle single line
-				local line = context[1]
-				line = string.insert(line, end_col, space .. char_pairs[CLOSING])
-				line = string.insert(line, start_col, char_pairs[OPENING] .. space)
-				context[1] = line
-			else
-				-- Handle multiple lines
-				local first_line = context[1]
-				local last_line = context[#context]
-				last_line = string.insert(last_line, end_col + 1, space .. char_pairs[CLOSING])
-				first_line = string.insert(first_line, start_col, char_pairs[OPENING] .. space)
-				context[1] = first_line
-				context[#context] = last_line
-			end
-		elseif mode == "V" then
-			-- Visual Line Mode
-			if #context == 1 then
-				-- Handle single line
-				local line = context[1]
-				local index = 1
-				for i = 1, #line do
-					local current_char = line:sub(i, i)
-					if current_char ~= " " and current_char ~= "\t" then
-						index = i
-						break
-					end
-				end
-				line = string.insert(line, #line + 1, space .. char_pairs[CLOSING])
-				line = string.insert(line, index, char_pairs[OPENING] .. space)
-				context[1] = line
-			else
-				-- Handle multiple lines
-				local first_line = context[1]
-				local last_line = context[#context]
-
-				local index = 1
-				-- Skip Leading Spaces and Tabs
-				for i = 1, #first_line do
-					local current_char = first_line:sub(i, i)
-					if current_char ~= " " and current_char ~= "\t" then
-						index = i
-						break
-					end
-				end
-
-				-- Insert the characters
-				last_line = string.insert(last_line, #last_line + 1, space .. char_pairs[CLOSING])
-				first_line = string.insert(first_line, index, char_pairs[OPENING] .. space)
-				context[1] = first_line
-				context[#context] = last_line
-			end
-		end
-	end
-
-	-- Replace buffer with added characters
-	vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, true, context)
-
-	-- Get out of visual mode
-	local key = vim.api.nvim_replace_termcodes("<esc>", true, false, true)
-	vim.api.nvim_feedkeys(key, "v", true)
-
-	-- Reset Cursor Position
-	-- vim.api.nvim_win_set_cursor(0, cursor_position)
-
-	-- Feedback
-	print("Added surrounding ", char)
-
-	-- Set Last CMD
-	vim.g.surround_last_cmd = { "surround_add", { char } }
-end
---- Surround Visual Selection.
--- Adds a character surrounding the users visual selection
--- @param char The character to surround with
-function M.surround_add()
-	local char = vim.fn.nr2char(vim.fn.getchar())
-	for i, v in pairs(MAP_KEYS) do
-		if char == i then
-			char = v
-			break
-		end
-	end
-	local mode = vim.api.nvim_get_mode()["mode"]
-
-	-- Get context
-	local start_line, start_col, end_line, end_col = utils.get_visual_pos()
 	local context = vim.api.nvim_call_function("getline", { start_line, end_line })
 
 	-- Get the pair to add
@@ -210,7 +81,7 @@ function M.surround_add()
 				-- Handle multiple lines
 				local first_line = context[1]
 				local last_line = context[#context]
-				last_line = string.insert(last_line, end_col + 1, space .. ")")
+				last_line = string.insert(last_line, end_col + mode_correction, space .. ")")
 				first_line = string.insert(first_line, start_col, func_name .. "(" .. space)
 				context[1] = first_line
 				context[#context] = last_line
@@ -222,14 +93,14 @@ function M.surround_add()
 			if #context == 1 then
 				-- Handle single line
 				local line = context[1]
-				line = string.insert(line, end_col + 1, space .. char_pairs[CLOSING])
+				line = string.insert(line, end_col + mode_correction, space .. char_pairs[CLOSING])
 				line = string.insert(line, start_col, char_pairs[OPENING] .. space)
 				context[1] = line
 			else
 				-- Handle multiple lines
 				local first_line = context[1]
 				local last_line = context[#context]
-				last_line = string.insert(last_line, end_col + 1, space .. char_pairs[CLOSING])
+				last_line = string.insert(last_line, end_col + mode_correction, space .. char_pairs[CLOSING])
 				first_line = string.insert(first_line, start_col, char_pairs[OPENING] .. space)
 				context[1] = first_line
 				context[#context] = last_line
