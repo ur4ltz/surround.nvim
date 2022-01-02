@@ -22,6 +22,7 @@ function M.surround_add(op_mode, surrounding, motion)
 	-- mode_correction is adjusting for differences in how vim
 	-- places its markers for visual selection and motions
 	local mode, mode_correction
+	local ext_mark
 	local start_line, start_col, end_line, end_col
 	if op_mode then
 		-- set visual mode when called as operator pending mode
@@ -38,6 +39,8 @@ function M.surround_add(op_mode, surrounding, motion)
 		local command = ":set operatorfunc=SurroundNoop" .. cr .. "g@" .. motion
 		vim.api.nvim_feedkeys(command, "x", true)
 
+		ext_mark = utils.highlight_motion_selection()
+
 		start_line, start_col, end_line, end_col = utils.get_operator_pos()
 	else
 		mode = vim.api.nvim_get_mode()["mode"]
@@ -47,6 +50,8 @@ function M.surround_add(op_mode, surrounding, motion)
 	local context = vim.api.nvim_call_function("getline", { start_line, end_line })
 
 	local char = surrounding or utils.get_surround_chars()
+	-- remove highlighting again that was set when op_mode
+	if ext_mark then vim .api.nvim_buf_del_extmark(0, vim.g.surround_namespace, ext_mark) end
 	if char == nil then
 		return
 	end
@@ -623,7 +628,6 @@ function M.setup(opts)
 		end
 	end
 	vim.cmd("function! SurroundNoop(type, ...)\nendfunction")
-	vim.cmd("highlight SurroundFeedback cterm=reverse gui=reverse")
 	set_default("mappings_style", "sandwich")
 	set_default("map_insert_mode", true)
 	set_default("prefix", "s")
@@ -650,6 +654,11 @@ function M.setup(opts)
 	set_default("load_keymaps", true)
 	if vim.g.surround_load_keymaps then
 		M.set_keymaps()
+	end
+
+	-- namespace for highlighting
+	if not vim.g.surround_namespace then
+		vim.g.surround_namespace = vim.api.nvim_create_namespace("surround")
 	end
 end
 

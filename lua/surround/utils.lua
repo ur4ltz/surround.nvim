@@ -210,8 +210,6 @@ local function table_keys(t)
 	return keys
 end
 
-local function highlight(start_pos, end_pos, duration) end
-
 local function has_value(tab, val)
 	for index, value in ipairs(tab) do
 		if value == val then
@@ -385,6 +383,27 @@ local function get_motion()
 	return count..motion
 end
 
+local function highlight_motion_selection()
+	-- this function assumes that '[ and '] were manually set before
+	local beg_mark = vim.api.nvim_buf_get_mark(0, "[")
+	local end_mark = vim.api.nvim_buf_get_mark(0, "]")
+	local ext_mark = vim.api.nvim_buf_set_extmark(
+		0,
+		vim.g.surround_namespace,
+		beg_mark[1] - 1,
+		beg_mark[2],
+		{
+			end_line = end_mark[1] - 1,
+			end_col = end_mark[2] + 1,
+			hl_group = "Visual",
+			priority = 1000
+		}
+	)
+	-- force a redraw of the window to show highlight immediately
+	vim.api.nvim_command(":redraw")
+	return ext_mark
+end
+
 return {
 	tprint = tprint,
 	has_value = has_value,
@@ -402,5 +421,6 @@ return {
 	quote = quote,
 	get = get,
 	map = map,
-	omaps = omaps
+	omaps = omaps,
+	highlight_motion_selection = highlight_motion_selection,
 }
