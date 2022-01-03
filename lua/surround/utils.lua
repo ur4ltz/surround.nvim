@@ -19,7 +19,12 @@ function table.merge(t1, t2)
 end
 
 function table.contains(tbl, string)
-	for _, v in ipairs(tbl) do
+	for k, v in pairs(tbl) do
+		if type(v) == "table" then
+			if table.contains(tbl[k], string) then
+				return true
+			end
+		end
 		if v == string then
 			return true
 		end
@@ -60,6 +65,18 @@ function string.isalnum(inputstr, includes)
 		end
 	end
 	return true
+end
+
+function string.escape_dquotes(string)
+	local string_esc = ""
+	for char in string.gmatch(string, ".") do
+		if char == '"' then
+			string_esc = string_esc .. "\\" .. char
+		else
+			string_esc = string_esc .. char
+		end
+	end
+	return string_esc
 end
 
 function string.split(inputstr, sep)
@@ -205,6 +222,169 @@ local function has_value(tab, val)
 	return false
 end
 
+local function clear_output_buffer()
+	vim.api.nvim_feedkeys("<C-l>", "x", true)
+end
+
+local function get_char()
+	local char_raw = vim.fn.getchar()
+	if type(char_raw) == "number" then
+		return char_raw, vim.fn.nr2char(char_raw)
+	else
+		-- special characters like <BS> or <S-Left> are already returned as strings
+		return char_raw, char_raw
+	end
+end
+
+local MAP_KEYS = { b = "(", B = "{", f = "f" }
+local function get_surround_chars()
+	vim.api.nvim_command(':echo "(Surround) Character: "')
+
+	local _, surrounding = get_char()
+
+	-- 27 is <ESC>
+	if surrounding == 27 then return nil end
+
+	clear_output_buffer()
+	-- escape potential " character
+	if not string.isalnum(surrounding) then
+		vim.api.nvim_command(':echomsg "(Surround) Character: \\' .. surrounding .. '"')
+	else
+		vim.api.nvim_command(':echomsg "(Surround) Character: ' .. surrounding .. '"')
+	end
+
+	for i, v in pairs(MAP_KEYS) do
+		if surrounding == i then
+			surrounding = v
+			break
+		end
+	end
+
+	return surrounding
+end
+
+local function map(table, func)
+	local t = {}
+	for k,v in pairs(table) do
+		if type(v) == "table" then
+			t[k] = map(table[k], func)
+		else
+			t[k] = func(v)
+		end
+	end
+	return t
+end
+
+local MOTIONS_RAW = {
+	final = {
+		left_right = {
+			left = {"h", "<Left>", "<C-H>", "<BS>", "^", "<Home>"},
+			right = {"l", "<Right>", "<SPACE>", "$", "<END>"},
+			other = {";", ",", "|"}
+		},
+		up_down = {
+			up = {"k", "<Up>", "<C-P>", "-"},
+			down = {"j", "<Down>", "<C-J>", "<NL>", "<C-N>", "+", "<C-M>", "<CR>", "_"},
+			other = {"G", "<C-END>", "<C-Home>", "%"}
+		},
+		words = {"<S-Right>", "w", "<C-Right>", "W", "e", "E", "<S-Left>", "b", "<C-Left>", "B"},
+		objects = {"(", ")", "{", "}"},
+	},
+	incomplete = {"a", "i", "g", "[", "]", "f", "F", "t", "T"},
+	selection_prefix = {"w", "W", "s", "p", "[", "]", "(", ")", "b", "<", ">", "t", "{", "}", "B", '"', "'", "`"},
+	g_prefix = {"_", "0", "<Home>", "m", "M", "$", "<End>", "g", "k", "<Up>", "j", "<Down>", "e", "E"},
+	bracket_prefix = {"[", "]"},
+}
+
+local MOTIONS_ESC = map(MOTIONS_RAW, function(item) return vim.api.nvim_replace_termcodes(item, true, false, true) end)
+
+local function omaps()
+	local ret = {}
+	local global_omaps = vim.api.nvim_get_keymap("o")
+	local buffer_omaps = vim.api.nvim_buf_get_keymap(0, "o")
+	local o_maps = table.merge(global_omaps, buffer_omaps)
+	for _,v in ipairs(o_maps) do
+		-- <Plug> is a not a producable character, only used for internal mappings
+		if not string.find(v.lhs, "<Plug>") then
+			table.insert(ret, v.lhs)
+		end
+	end
+	return ret
+end
+
+
+local function get_motion()
+	local motion = ""
+	local motion_esc = ""
+	local count = ""
+	local msg = ""
+	local last_char = ""
+	local count_complete = false
+	local o_maps = omaps()
+	while true do
+		clear_output_buffer()
+		vim.api.nvim_command(":echo '(Surround) Motion: " .. msg .. "'")
+		local char_raw, char_string = get_char()
+
+		-- 27 is <ESC>
+		if char_raw == 27 then return nil end
+
+		if motion == "" and char_string == "0" then
+			-- "0" motion (beginning of line) does not take a count
+			return "0"
+		end
+
+		if "0" <= char_string and char_string <= "9" and not count_complete then
+			count = count .. char_string
+		else
+			count_complete = true
+			motion = motion .. char_string
+
+			-- escape non-alphanumeric characters
+			if not string.isalnum(char_string) then
+				msg = msg .. "\\" .. char_string
+				motion_esc = motion_esc .. "%" .. char_string
+			else
+				msg = msg .. char_string
+				motion_esc = motion_esc .. char_string
+			end
+
+			local custom_omap = false
+			for _,v in ipairs(o_maps) do
+				local idx,_ = string.find(v, motion_esc)
+				if idx == 1 then
+					custom_omap = true
+					if #v == #motion then
+						break
+					end
+				end
+			end
+
+			if
+				   (has_value({"a", "i"}, last_char) and table.contains(MOTIONS_ESC["selection_prefix"], char_string))
+				or (has_value({"[", "]"}, last_char) and table.contains(MOTIONS_ESC["bracket_prefix"], char_string))
+				or (has_value({"f", "F", "t", "T"}, last_char) and type(char_raw) == "number")
+				or (last_char == "g" and table.contains(MOTIONS_ESC["g_prefix"], char_string))
+				or (table.contains(MOTIONS_ESC["final"], char_string) and not table.contains(MOTIONS_ESC["incomplete"], last_char))
+			then
+				break
+			elseif
+				not ((table.contains(MOTIONS_ESC["incomplete"], char_string)
+				and not table.contains(MOTIONS_ESC["incomplete"], last_char))
+				or custom_omap)
+			then
+				clear_output_buffer()
+				vim.api.nvim_command(':echomsg "(Surround) Motion: ' .. msg .. ' ❌ (invalid)"')
+				return nil
+			end
+		end
+		last_char = char_string
+	end
+	clear_output_buffer()
+	vim.api.nvim_command(':echomsg "(Surround) Motion: ' .. msg .. ' ✅"')
+	return count..motion
+end
+
 return {
 	tprint = tprint,
 	has_value = has_value,
@@ -214,7 +394,13 @@ return {
 	get_nth_element = get_nth_element,
 	get_visual_pos = get_visual_pos,
 	get_operator_pos = get_operator_pos,
+	get_motion = get_motion,
+	get_surround_chars = get_surround_chars,
+	get_char = get_char,
+	clear_output_buffer = clear_output_buffer,
 	load_keymaps = load_keymaps,
 	quote = quote,
 	get = get,
+	map = map,
+	omaps = omaps
 }

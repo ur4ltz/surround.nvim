@@ -13,16 +13,11 @@ local MAP_KEYS = { b = "(", B = "{", f = "f" }
 
 --- Surround selection.
 -- Adds a character surrounding the user's selection in either visual mode or operator pending mode.
--- @param[opt=false] op_mode Boolean value indicating that the function was called from operator pending mode
-function M.surround_add(op_mode)
+-- @param[opt=false] op_mode Boolean value indicating that the function was called from operator pending mode.
+-- @param[opt=nil] surrounding The character used to surround text. If ommited, user is asked for input.
+-- @param[opt=nil] motion The motion that should be used to select text in operator pending mode. If ommited, user is asked for input.
+function M.surround_add(op_mode, surrounding, motion)
 	op_mode = op_mode or false
-	local char = vim.fn.nr2char(vim.fn.getchar())
-	for i, v in pairs(MAP_KEYS) do
-		if char == i then
-			char = v
-			break
-		end
-	end
 
 	-- mode_correction is adjusting for differences in how vim
 	-- places its markers for visual selection and motions
@@ -32,6 +27,17 @@ function M.surround_add(op_mode)
 		-- set visual mode when called as operator pending mode
 		mode = "v"
 		mode_correction = 0
+
+		motion = motion or utils.get_motion()
+		if motion == nil then
+			return
+		end
+
+		-- use a noop with the g@ operator to set '[ and '] marks
+		local cr = vim.api.nvim_replace_termcodes("<CR>", true, false, true)
+		local command = ":set operatorfunc=SurroundNoop" .. cr .. "g@" .. motion
+		vim.api.nvim_feedkeys(command, "x", true)
+
 		start_line, start_col, end_line, end_col = utils.get_operator_pos()
 	else
 		mode = vim.api.nvim_get_mode()["mode"]
@@ -39,6 +45,18 @@ function M.surround_add(op_mode)
 		start_line, start_col, end_line, end_col = utils.get_visual_pos()
 	end
 	local context = vim.api.nvim_call_function("getline", { start_line, end_line })
+
+	local char = surrounding or utils.get_surround_chars()
+	if char == nil then
+		return
+	end
+
+	if op_mode then
+		vim.g.surround_last_cmd = { "surround_add", { true, char, motion } }
+	else
+		-- When called from visual mode, the command cannot be repeated
+		vim.g.surround_last_cmd = nil
+	end
 
 	-- Get the pair to add
 	local surround_pairs = vim.g.surround_pairs
@@ -157,9 +175,6 @@ function M.surround_add(op_mode)
 
 	-- Feedback
 	print("Added surrounding ", char)
-
-	-- Set Last CMD
-	vim.g.surround_last_cmd = { "surround_add", { char } }
 end
 
 function M.surround_delete(char)
@@ -529,7 +544,7 @@ function M.repeat_last()
 	local args = cmd[2]
 	for i, arg in pairs(args) do
 		if type(arg) == "string" then
-			args[i] = utils.quote(arg)
+			args[i] = utils.quote(string.escape_dquotes(arg))
 		else
 			args[i] = tostring(arg)
 		end
@@ -545,7 +560,7 @@ function M.set_keymaps()
 
 	if vim.g.surround_mappings_style == "sandwich" then
 		-- Special Maps
-		map("n", vim.g.surround_prefix .. "a", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
+		map("n", vim.g.surround_prefix .. "a", "<cmd>lua require'surround'.surround_add(true)<cr>")
 		-- Cycle surrounding quotes
 		map("n", vim.g.surround_prefix .. "tq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
 		-- Cycle surrounding brackets
@@ -607,6 +622,7 @@ function M.setup(opts)
 			vim.g["surround_" .. opt] = default
 		end
 	end
+	vim.cmd("function! SurroundNoop(type, ...)\nendfunction")
 	vim.cmd("highlight SurroundFeedback cterm=reverse gui=reverse")
 	set_default("mappings_style", "sandwich")
 	set_default("map_insert_mode", true)
