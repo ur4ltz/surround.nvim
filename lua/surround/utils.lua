@@ -261,6 +261,14 @@ local function get_surround_chars()
 	return surrounding
 end
 
+local function get_char_pair(char)
+	for _, pair in pairs(vim.g.surround_pairs_flat) do
+		if table.contains(pair, char) then
+			return pair
+		end
+	end
+end
+
 local function map(table, func)
 	local t = {}
 	for k,v in pairs(table) do
@@ -414,6 +422,7 @@ return {
 	get_visual_pos = get_visual_pos,
 	get_operator_pos = get_operator_pos,
 	get_motion = get_motion,
+	get_char_pair = get_char_pair,
 	get_surround_chars = get_surround_chars,
 	get_char = get_char,
 	clear_output_buffer = clear_output_buffer,

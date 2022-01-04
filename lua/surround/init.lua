@@ -65,17 +65,8 @@ function M.surround_add(op_mode, surrounding, motion)
 
 	-- Get the pair to add
 	local surround_pairs = vim.g.surround_pairs
-	local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
-	local char_pairs
-	for _, pair in ipairs(all_pairs) do
-		if table.contains(pair, char) then
-			char_pairs = pair
-			break
-		end
-	end
-	if char_pairs == nil and char ~= "f" then
-		return
-	end
+	local char_pairs = utils.get_char_pair(char)
+	if char_pairs == nil and char ~= "f" then return end
 
 	local space = ""
 	if vim.g.surround_space_on_closing_char then
@@ -348,23 +339,19 @@ function M.surround_replace(
 		end
 
 		-- Get the pair to replace with
-		local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
-		local char_2_pairs
-		for _, pair in ipairs(all_pairs) do
-			if table.contains(pair, char_2) then
-				char_2_pairs = pair
-				break
-			end
-		end
-		if char_2_pairs == nil then
-			return
-		end
+		local char_2_pairs = utils.get_char_pair(char_2)
+		if char_2_pairs == nil then return end
 
 		-- Replace surrounding brackets with char_2 and remove function
+		context[indexes[CLOSING][LINE]] = string.set(
+			context[indexes[CLOSING][LINE]],
+			indexes[CLOSING][COLUMN],
+			char_2_pairs[CLOSING]
+		)
 		context[indexes[OPENING][LINE]] = string.set(
 			context[indexes[OPENING][LINE]],
 			indexes[OPENING][COLUMN],
-			char_2_pairs[1]
+			char_2_pairs[OPENING]
 		)
 		context[indexes[CLOSING][LINE]] = string.set(
 			context[indexes[CLOSING][LINE]],
@@ -406,17 +393,9 @@ function M.surround_replace(
 		end
 
 		-- Get the pair to replace with
-		local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
-		local char_2_pairs
-		for _, pair in ipairs(all_pairs) do
-			if table.contains(pair, char_2) then
-				char_2_pairs = pair
-				break
-			end
-		end
-		if char_2_pairs == nil then
-			return
-		end
+		local char_2_pairs = utils.get_char_pair(char_2)
+		if char_2_pairs == nil then return end
+
 		-- Replace char_1 with char_2
 		context[indexes[OPENING][LINE]] = string.set(
 			context[indexes[OPENING][LINE]],
