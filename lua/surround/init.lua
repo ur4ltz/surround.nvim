@@ -193,15 +193,12 @@ function M.surround_delete(char)
 		char = vim.fn.nr2char(vim.fn.getchar())
 		if utils.has_value({ "2", "3", "4", "5", "6", "7", "8", "9" }, char) then
 			n = tonumber(char) - 1
-			char = vim.fn.nr2char(vim.fn.getchar())
-		end
-		for i, v in pairs(MAP_KEYS) do
-			if char == i then
-				char = v
-				break
-			end
+			char = utils.get_surround_chars()
 		end
 	end
+
+	local char_pairs = utils.get_char_pair(char)
+	if char_pairs == nil and char ~= "f" then return end
 
 	-- Get context
 	if table.contains(vim.tbl_flatten(surround_pairs.linear), char) then
@@ -225,6 +222,10 @@ function M.surround_delete(char)
 		return
 	end
 
+	-- indexes[3] is the function start index
+	local space_opening = (indexes[4] and 1) or 0
+	local space_closing = (indexes[5] and 1) or 0
+
 	if char == "f" then
 		-- Handle functions
 		context[indexes[CLOSING][LINE]] = string.remove(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN])
@@ -235,8 +236,16 @@ function M.surround_delete(char)
 		)
 	else
 		-- Remove surrounding character  matches
-		context[indexes[CLOSING][LINE]] = string.remove(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN])
-		context[indexes[OPENING][LINE]] = string.remove(context[indexes[OPENING][LINE]], indexes[OPENING][COLUMN])
+		context[indexes[CLOSING][LINE]] = string.remove(
+			context[indexes[CLOSING][LINE]],
+			indexes[CLOSING][COLUMN] - space_closing,
+			indexes[CLOSING][COLUMN] + #char_pairs[CLOSING]
+		)
+		context[indexes[OPENING][LINE]] = string.remove(
+			context[indexes[OPENING][LINE]],
+			indexes[OPENING][COLUMN],
+			indexes[OPENING][COLUMN] + #char_pairs[OPENING] + space_opening
+		)
 	end
 
 	-- Replace Buffer

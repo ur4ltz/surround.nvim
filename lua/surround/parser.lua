@@ -16,8 +16,10 @@ local COLUMN = 2
 -- @param requested_pair The leve of depth relative to nested pair that should be removed
 -- @param nested Boolean value indicating whether to look for nested or non-nested brackets.
 -- @param opening Boolean value indicating whether to look for the opening bracket. A false value will look for the closing bracket.
--- @return A table containing the values: error, index, requested_pair, pair_stack
+-- @return A table containing the values: error, index, remove_space, requested_pair, pair_stack
 local function find_bracket_index(line, line_no, col_no, pair, pair_stack, requested_pair, nested, opening)
+
+  local remove_space = false
   local index = nil
 
   local primary
@@ -32,6 +34,7 @@ local function find_bracket_index(line, line_no, col_no, pair, pair_stack, reque
 
   -- Get the character currently looping through and the previous one for escaping purposes
   local prev_char = line:sub(col_no - 1, col_no - 1)
+  local next_char = line:sub(col_no + #pair[primary], col_no + #pair[primary])
 
   local curr_char = {}
   curr_char[primary] = line:sub(col_no, col_no + #pair[primary] - 1)
@@ -47,6 +50,12 @@ local function find_bracket_index(line, line_no, col_no, pair, pair_stack, reque
       -- if the pair stack is empty set the indexes
       if pair_stack <= 0 then
         if requested_pair == 0 then
+          if primary == OPENING and next_char == " " then
+            remove_space = true
+          end
+          if primary == CLOSING and prev_char == " " then
+            remove_space = true
+          end
           index = {line_no, col_no}
         end
         requested_pair = requested_pair - 1
@@ -55,6 +64,12 @@ local function find_bracket_index(line, line_no, col_no, pair, pair_stack, reque
     end
   else
     if (curr_char[primary] == pair[primary] and prev_char ~= "\\") then
+      if primary == OPENING and next_char == " " then
+        remove_space = true
+      end
+      if primary == CLOSING and prev_char == " " then
+        remove_space = true
+      end
       index = {line_no, col_no}
     elseif (curr_char[opposite] == pair[opposite] and prev_char ~= "\\") then
       -- since items are non-nested, finding opposite bracket first is a show-stopper
@@ -64,6 +79,7 @@ local function find_bracket_index(line, line_no, col_no, pair, pair_stack, reque
   return {
     error = false,
     index = index,
+    remove_space = remove_space,
     requested_pair = requested_pair,
     pair_stack = pair_stack
   }
@@ -80,6 +96,8 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
   local opening_index
   local closing_index
   local function_start_index
+  local remove_space_after_opening
+  local remove_space_before_closing
 
   local buffer_prev_indexes = {
     cursor_position[LINE], cursor_position[COLUMN] - 1
@@ -121,6 +139,7 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
         end
         if temp_results_table["index"] then
           opening_index = temp_results_table["index"]
+          remove_space_after_opening = temp_results_table["remove_space"]
           break
         end
       end
@@ -133,6 +152,7 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
         end
         if temp_results_table["index"] then
           opening_index = temp_results_table["index"]
+          remove_space_after_opening = temp_results_table["remove_space"]
           break
         end
       end
@@ -157,6 +177,7 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
         end
         if temp_results_table["index"] then
           closing_index = temp_results_table["index"]
+          remove_space_before_closing = temp_results_table["remove_space"]
           break
         end
       end
@@ -169,6 +190,7 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
         end
         if temp_results_table["index"] then
           closing_index = temp_results_table["index"]
+          remove_space_before_closing = temp_results_table["remove_space"]
           break
         end
       end
@@ -187,7 +209,7 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
   end
 
   if (opening_index and closing_index) then
-    return {opening_index, closing_index, function_start_index}
+    return {opening_index, closing_index, function_start_index, remove_space_after_opening, remove_space_before_closing}
   else
     return nil
   end
@@ -198,7 +220,7 @@ end
 -- @param buffer the buffer to look for the surrounding pair char
 -- @param cur_pos the cursor positon in the buffer (1 indexed)
 -- @param char the char for which the surrounding pair must be found
--- @return a table consisting of a pair of indexes (1 indexed) in the form {opening_char_index, closing_char_index}
+-- @return a table consisting of a pair of indexes (1 indexed) in the form {opening_char_index, closing_char_index} or false if no pairs found
 -- @function get_surround_pair
 local function get_surround_pair(buffer, cursor_position, surrounding_char,
                                  includes, n)
