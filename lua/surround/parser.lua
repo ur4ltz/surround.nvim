@@ -225,9 +225,7 @@ end
 local function get_surround_pair(buffer, cursor_position, surrounding_char,
                                  includes, n)
   local surround_pairs = vim.g.surround_pairs
-  -- If the character is not in the pairs table return an emoty string.
-  local all_pairs = vim.tbl_flatten(table.merge(surround_pairs.nestable,
-                                                surround_pairs.linear))
+  local all_pairs = vim.g.surround_pairs_flat
   local special_char = {"f"}
   for _, char in ipairs(special_char) do
     table.insert(all_pairs, #all_pairs + 1, char)
