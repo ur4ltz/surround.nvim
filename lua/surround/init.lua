@@ -590,10 +590,21 @@ function M.set_keymaps()
 
 	if vim.g.surround_map_insert_mode then
 		-- Insert Mode Ctrl-S mappings
-		for _, pair in ipairs(vim.g.surround_pairs_flat) do
-			map("i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>")
-			map("i", "<c-s>" .. pair[OPENING] .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>")
-			map("i", "<c-s>" .. pair[OPENING] .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
+		for key, pair in pairs(vim.g.surround_pairs_flat) do
+			if #pair[OPENING] == 1 then
+				map("i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>")
+				map("i", "<c-s>" .. pair[OPENING] .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>")
+				map("i", "<c-s>" .. pair[OPENING] .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
+			end
+
+			local left = ""
+			for _ in string.gmatch(pair[CLOSING], ".") do
+				left = left .. "<left>"
+			end
+
+			map("i", "<c-s>" .. key, pair[OPENING] .. pair[CLOSING] .. left)
+			map("i", "<c-s>" .. key .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. left .. "<left>")
+			map("i", "<c-s>" .. key .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
 		end
 	end
 end
