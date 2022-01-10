@@ -11,24 +11,57 @@ local LINE = 1
 local COLUMN = 2
 local MAP_KEYS = { b = "(", B = "{", f = "f" }
 
-function M.surround_add_operator_mode()
-	local char = vim.fn.nr2char(vim.fn.getchar())
-	for i, v in pairs(MAP_KEYS) do
-		if char == i then
-			char = v
-			break
+--- Surround selection.
+-- Adds a character surrounding the user's selection in either visual mode or operator pending mode.
+-- @param[opt=false] op_mode Boolean value indicating that the function was called from operator pending mode.
+-- @param[opt=nil] surrounding The character used to surround text. If ommited, user is asked for input.
+-- @param[opt=nil] motion The motion that should be used to select text in operator pending mode. If ommited, user is asked for input.
+function M.surround_add(op_mode, surrounding, motion)
+	op_mode = op_mode or false
+
+	-- mode_correction is adjusting for differences in how vim
+	-- places its markers for visual selection and motions
+	local mode, mode_correction
+	local ext_mark
+	local start_line, start_col, end_line, end_col
+	if op_mode then
+		-- set visual mode when called as operator pending mode
+		mode = "v"
+		mode_correction = 0
+
+		motion = motion or utils.get_motion()
+		if motion == nil then
+			return
 		end
+
+		-- use a noop with the g@ operator to set '[ and '] marks
+		local cr = vim.api.nvim_replace_termcodes("<CR>", true, false, true)
+		local command = ":set operatorfunc=SurroundNoop" .. cr .. "g@" .. motion
+		vim.api.nvim_feedkeys(command, "x", true)
+
+		ext_mark = utils.highlight_motion_selection()
+
+		start_line, start_col, end_line, end_col = utils.get_operator_pos()
+	else
+		mode = vim.api.nvim_get_mode()["mode"]
+		mode_correction = 1
+		start_line, start_col, end_line, end_col = utils.get_visual_pos()
+	end
+	local context = vim.api.nvim_call_function("getline", { start_line, end_line })
+
+	local char = surrounding or utils.get_surround_chars()
+	-- remove highlighting again that was set when op_mode
+	if ext_mark then vim .api.nvim_buf_del_extmark(0, vim.g.surround_namespace, ext_mark) end
+	if char == nil then
+		return
 	end
 
-	-- Get context
-	local start_line, start_col, end_line, end_col = utils.get_operator_pos()
-	local context = vim.api.nvim_call_function("getline", { start_line, end_line })
-	local mode
-	-- if start_line == end_line then
-	mode = "v"
-	-- else
-	-- mode = "V"
-	-- end
+	if op_mode then
+		vim.g.surround_last_cmd = { "surround_add", { true, char, motion } }
+	else
+		-- When called from visual mode, the command cannot be repeated
+		vim.g.surround_last_cmd = nil
+	end
 
 	-- Get the pair to add
 	local surround_pairs = vim.g.surround_pairs
@@ -40,8 +73,7 @@ function M.surround_add_operator_mode()
 			break
 		end
 	end
-
-	if char_pairs == nil then
+	if char_pairs == nil and char ~= "f" then
 		return
 	end
 
@@ -72,7 +104,7 @@ function M.surround_add_operator_mode()
 				-- Handle multiple lines
 				local first_line = context[1]
 				local last_line = context[#context]
-				last_line = string.insert(last_line, end_col + 1, space .. ")")
+				last_line = string.insert(last_line, end_col + mode_correction, space .. ")")
 				first_line = string.insert(first_line, start_col, func_name .. "(" .. space)
 				context[1] = first_line
 				context[#context] = last_line
@@ -84,14 +116,14 @@ function M.surround_add_operator_mode()
 			if #context == 1 then
 				-- Handle single line
 				local line = context[1]
-				line = string.insert(line, end_col, space .. char_pairs[CLOSING])
+				line = string.insert(line, end_col + mode_correction, space .. char_pairs[CLOSING])
 				line = string.insert(line, start_col, char_pairs[OPENING] .. space)
 				context[1] = line
 			else
 				-- Handle multiple lines
 				local first_line = context[1]
 				local last_line = context[#context]
-				last_line = string.insert(last_line, end_col + 1, space .. char_pairs[CLOSING])
+				last_line = string.insert(last_line, end_col + mode_correction, space .. char_pairs[CLOSING])
 				first_line = string.insert(first_line, start_col, char_pairs[OPENING] .. space)
 				context[1] = first_line
 				context[#context] = last_line
@@ -148,147 +180,6 @@ function M.surround_add_operator_mode()
 
 	-- Feedback
 	print("Added surrounding ", char)
-
-	-- Set Last CMD
-	vim.g.surround_last_cmd = { "surround_add", { char } }
-end
---- Surround Visual Selection.
--- Adds a character surrounding the users visual selection
--- @param char The character to surround with
-function M.surround_add()
-	local char = vim.fn.nr2char(vim.fn.getchar())
-	for i, v in pairs(MAP_KEYS) do
-		if char == i then
-			char = v
-			break
-		end
-	end
-	local mode = vim.api.nvim_get_mode()["mode"]
-
-	-- Get context
-	local start_line, start_col, end_line, end_col = utils.get_visual_pos()
-	local context = vim.api.nvim_call_function("getline", { start_line, end_line })
-
-	-- Get the pair to add
-	local surround_pairs = vim.g.surround_pairs
-	local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
-	local char_pairs
-	for _, pair in ipairs(all_pairs) do
-		if table.contains(pair, char) then
-			char_pairs = pair
-			break
-		end
-	end
-	if char_pairs == nil then
-		return
-	end
-
-	local space = ""
-	if vim.g.surround_space_on_closing_char then
-		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[CLOSING] then
-			space = " "
-		end
-	else
-		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[OPENING] then
-			space = " "
-		end
-	end
-
-	-- Add surrounding characters
-	if char == "f" then
-		-- Handle Functions
-		local func_name = utils.user_input("funcname: ")
-		if mode == "v" then
-			-- Visual Mode
-			if #context == 1 then
-				-- Handle single line
-				local line = context[1]
-				line = string.insert(line, end_col, space .. ")")
-				line = string.insert(line, start_col, func_name .. "(" .. space)
-				context[1] = line
-			else
-				-- Handle multiple lines
-				local first_line = context[1]
-				local last_line = context[#context]
-				last_line = string.insert(last_line, end_col + 1, space .. ")")
-				first_line = string.insert(first_line, start_col, func_name .. "(" .. space)
-				context[1] = first_line
-				context[#context] = last_line
-			end
-		end
-	else
-		if mode == "v" then
-			-- Visual Mode
-			if #context == 1 then
-				-- Handle single line
-				local line = context[1]
-				line = string.insert(line, end_col + 1, space .. char_pairs[CLOSING])
-				line = string.insert(line, start_col, char_pairs[OPENING] .. space)
-				context[1] = line
-			else
-				-- Handle multiple lines
-				local first_line = context[1]
-				local last_line = context[#context]
-				last_line = string.insert(last_line, end_col + 1, space .. char_pairs[CLOSING])
-				first_line = string.insert(first_line, start_col, char_pairs[OPENING] .. space)
-				context[1] = first_line
-				context[#context] = last_line
-			end
-		elseif mode == "V" then
-			-- Visual Line Mode
-			if #context == 1 then
-				-- Handle single line
-				local line = context[1]
-				local index = 1
-				for i = 1, #line do
-					local current_char = line:sub(i, i)
-					if current_char ~= " " and current_char ~= "\t" then
-						index = i
-						break
-					end
-				end
-				line = string.insert(line, #line + 1, space .. char_pairs[CLOSING])
-				line = string.insert(line, index, char_pairs[OPENING] .. space)
-				context[1] = line
-			else
-				-- Handle multiple lines
-				local first_line = context[1]
-				local last_line = context[#context]
-
-				local index = 1
-				-- Skip Leading Spaces and Tabs
-				for i = 1, #first_line do
-					local current_char = first_line:sub(i, i)
-					if current_char ~= " " and current_char ~= "\t" then
-						index = i
-						break
-					end
-				end
-
-				-- Insert the characters
-				last_line = string.insert(last_line, #last_line + 1, space .. char_pairs[CLOSING])
-				first_line = string.insert(first_line, index, char_pairs[OPENING] .. space)
-				context[1] = first_line
-				context[#context] = last_line
-			end
-		end
-	end
-
-	-- Replace buffer with added characters
-	vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, true, context)
-
-	-- Get out of visual mode
-	local key = vim.api.nvim_replace_termcodes("<esc>", true, false, true)
-	vim.api.nvim_feedkeys(key, "v", true)
-
-	-- Reset Cursor Position
-	-- vim.api.nvim_win_set_cursor(0, cursor_position)
-
-	-- Feedback
-	print("Added surrounding ", char)
-
-	-- Set Last CMD
-	vim.g.surround_last_cmd = { "surround_add", { char } }
 end
 
 function M.surround_delete(char)
@@ -369,7 +260,8 @@ function M.surround_replace(
 	cursor_position_relative,
 	context,
 	char_1,
-	char_2
+	char_2,
+	func_name
 )
 	local surround_pairs = vim.g.surround_pairs
 	local n = 0
@@ -420,19 +312,21 @@ function M.surround_replace(
 		end
 
 		-- Get new funcname
-		local func_name = utils.user_input("funcname: ")
+		if not func_name then
+			func_name = utils.user_input("funcname: ")
+		end
 
 		-- Delete old function
 		context[indexes[FUNCTION][LINE]] = string.remove(
 			context[indexes[FUNCTION][LINE]],
-			indexes[1][COLUMN],
-			indexes[2][COLUMN]
+			indexes[FUNCTION][COLUMN],
+			indexes[OPENING][COLUMN]
 		)
 
 		-- Add new function
 		context[indexes[FUNCTION][LINE]] = string.insert(
 			context[indexes[FUNCTION][LINE]],
-			indexes[1][COLUMN],
+			indexes[FUNCTION][COLUMN],
 			func_name
 		)
 	elseif char_1 == "f" then
@@ -483,7 +377,9 @@ function M.surround_replace(
 		end
 
 		-- Get new funcname
-		local func_name = utils.user_input("funcname: ")
+		if not func_name then
+			func_name = utils.user_input("funcname: ")
+		end
 		context[indexes[OPENING][LINE]] = string.set(context[indexes[OPENING][LINE]], indexes[OPENING][COLUMN], "(")
 		context[indexes[CLOSING][LINE]] = string.set(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN], ")")
 		context[indexes[OPENING][LINE]] = string.insert(
@@ -538,7 +434,7 @@ function M.surround_replace(
 	if not is_toggle then
 		vim.g.surround_last_cmd = {
 			"surround_replace",
-			{ false, vim.NIL, vim.NIL, vim.NIL, vim.NIL, vim.NIL, char_1, char_2 },
+			{ false, vim.NIL, vim.NIL, vim.NIL, vim.NIL, vim.NIL, char_1, char_2, func_name },
 		}
 	end
 end
@@ -658,7 +554,7 @@ function M.repeat_last()
 	local args = cmd[2]
 	for i, arg in pairs(args) do
 		if type(arg) == "string" then
-			args[i] = utils.quote(arg)
+			args[i] = utils.quote(string.escape_dquotes(arg))
 		else
 			args[i] = tostring(arg)
 		end
@@ -674,7 +570,7 @@ function M.set_keymaps()
 
 	if vim.g.surround_mappings_style == "sandwich" then
 		-- Special Maps
-		map("n", vim.g.surround_prefix .. "a", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
+		map("n", vim.g.surround_prefix .. "a", "<cmd>lua require'surround'.surround_add(true)<cr>")
 		-- Cycle surrounding quotes
 		map("n", vim.g.surround_prefix .. "tq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
 		-- Cycle surrounding brackets
@@ -736,7 +632,7 @@ function M.setup(opts)
 			vim.g["surround_" .. opt] = default
 		end
 	end
-	vim.cmd("highlight SurroundFeedback cterm=reverse gui=reverse")
+	vim.cmd("function! SurroundNoop(type, ...)\nendfunction")
 	set_default("mappings_style", "sandwich")
 	set_default("map_insert_mode", true)
 	set_default("prefix", "s")
@@ -763,6 +659,11 @@ function M.setup(opts)
 	set_default("load_keymaps", true)
 	if vim.g.surround_load_keymaps then
 		M.set_keymaps()
+	end
+
+	-- namespace for highlighting
+	if not vim.g.surround_namespace then
+		vim.g.surround_namespace = vim.api.nvim_create_namespace("surround")
 	end
 end
 
