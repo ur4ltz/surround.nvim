@@ -51,7 +51,7 @@ function M.surround_add(op_mode, surrounding, motion)
 
 	local char = surrounding or utils.get_surround_chars()
 	-- remove highlighting again that was set when op_mode
-	if ext_mark then vim .api.nvim_buf_del_extmark(0, vim.g.surround_namespace, ext_mark) end
+	if ext_mark then vim.api.nvim_buf_del_extmark(0, vim.g.surround_namespace, ext_mark) end
 	if char == nil then
 		return
 	end
@@ -589,7 +589,7 @@ function M.set_keymaps()
 		map("n", vim.g.surround_prefix .. "r", "<cmd>lua require'surround'.surround_replace()<cr>")
 	elseif vim.g.surround_mappings_style == "surround" then
 		-- Special Maps
-		map("n", "ys", "<cmd>set operatorfunc=SurroundAddOperatorMode<cr>g@")
+		map("n", "ys", "<cmd>lua require'surround'.surround_add(true)<cr>")
 		-- Cycle surrounding quotes
 		map("n", "cq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
 		-- Normal Mode Maps
