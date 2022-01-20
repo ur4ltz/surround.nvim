@@ -106,7 +106,7 @@ require"surround".setup {
 1. Only supports neovim and always will because it's written in lua which is neovim exclusive.
 1. Doesn't support python docstrings and html tags yet.
 1. No vim docs(idk how to make them. Need help)
-1. No `.` repeat support(idk how to achieve this help would be appreciated.) (although there is a mapping `ss` only available in sandwich mode which repeats last surround command.)
+1. Support for repeating actions with `.` requires [tpope's vim-repeat](https://github.com/tpope/vim-repeat).
 
 ## Contributing
 
