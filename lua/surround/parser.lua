@@ -17,7 +17,7 @@ local COLUMN = 2
 -- @param nested Boolean value indicating whether to look for nested or non-nested brackets.
 -- @param opening Boolean value indicating whether to look for the opening bracket. A false value will look for the closing bracket.
 -- @return A table containing the values: error, index, remove_space, requested_pair, pair_stack
-local function find_bracket_index(line, line_no, col_no, pair, pair_stack, requested_pair, nested, opening)
+local function find_bracket_index(line, line_no, col_no, pair, pair_stack, requested_pair, nested, opening, no_create_pair_stack)
 
   local remove_space = false
   local index = nil
@@ -43,7 +43,7 @@ local function find_bracket_index(line, line_no, col_no, pair, pair_stack, reque
 
   if nested then
     -- If found the opposite bracket, add it to the pair stack
-    if (curr_char[opposite] == pair[opposite] and prev_char ~= "\\") then
+    if (curr_char[opposite] == pair[opposite] and prev_char ~= "\\" and not no_create_pair_stack) then
       pair_stack = pair_stack + 1
     end
     if (curr_char[primary] == pair[primary] and prev_char ~= "\\") then
@@ -73,7 +73,7 @@ local function find_bracket_index(line, line_no, col_no, pair, pair_stack, reque
       index = {line_no, col_no}
     elseif (curr_char[opposite] == pair[opposite] and prev_char ~= "\\") then
       -- since items are non-nested, finding opposite bracket first is a show-stopper
-      return true
+      return { error = true }
     end
   end
   return {
@@ -89,7 +89,6 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
   n = n or 0
 
   local temp_results_table = {}
-  temp_results_table["requested_pair"] = n
 
   local pair = utils.get_char_pair(surrounding_char)
 
@@ -99,38 +98,16 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
   local remove_space_after_opening
   local remove_space_before_closing
 
-  local buffer_prev_indexes = {
-    cursor_position[LINE], cursor_position[COLUMN] - 1
-  }
-  local buffer_next_indexes = {
-    cursor_position[LINE], cursor_position[COLUMN] + 1
-  }
-
-  local char_before_cursor = buffer[cursor_position[LINE]]:sub(
-    cursor_position[COLUMN] - 1,
-    cursor_position[COLUMN] - 1
-  )
-  local char_at_cursor = buffer[cursor_position[LINE]]:sub(
-    cursor_position[COLUMN],
-    cursor_position[COLUMN]
-  )
-
-  if (pair[OPENING] == char_at_cursor and char_before_cursor ~= "\\") then
-    opening_index = {cursor_position[LINE], cursor_position[COLUMN]}
-  elseif (pair[CLOSING] == char_at_cursor and char_before_cursor ~= "\\") then
-    closing_index = {cursor_position[LINE], cursor_position[COLUMN]}
-  end
-
   -- Find opening character indexes
   -- Initialize pair stack
+  temp_results_table["requested_pair"] = n
   temp_results_table["pair_stack"] = 0
-
   -- Loop through the lines before the cursor in reverse order
-  for line_no = buffer_prev_indexes[LINE], 1, -1 do
+  for line_no = cursor_position[LINE], 1, -1 do
     -- Check if already found
     if opening_index then break end
     local line = buffer[line_no]
-    if line_no < buffer_prev_indexes[LINE] then
+    if line_no < cursor_position[LINE] then
       -- Loop through the line in reverse order if cursor is not on the line
       for col_no = #line, 1, -1 do
         temp_results_table = find_bracket_index(line, line_no, col_no, pair, temp_results_table["pair_stack"], temp_results_table["requested_pair"], nested, true)
@@ -145,8 +122,19 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
       end
     else
       -- Loop through the line in reverse order from the cursor position if cursor is on the line
-      for col_no = buffer_prev_indexes[COLUMN], 1, -1 do
-        temp_results_table = find_bracket_index(line, line_no, col_no, pair, temp_results_table["pair_stack"], temp_results_table["requested_pair"], nested, true)
+      for col_no = cursor_position[COLUMN], 1, -1 do
+        temp_results_table = find_bracket_index(
+          line,
+          line_no,
+          col_no,
+          pair,
+          temp_results_table["pair_stack"],
+          temp_results_table["requested_pair"],
+          nested,
+          true,
+          -- cursor could be inside a closing bracket, don't add to the pair_stack in that case
+          cursor_position[COLUMN] - col_no < #pair[CLOSING]
+        )
         if temp_results_table["error"] then
           return nil
         end
@@ -159,16 +147,18 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
     end
   end
 
-  temp_results_table["requested_pair"] = n
+  if opening_index == nil then return end
+
   -- Find closing character indexes
   -- Initialize pair stack
+  temp_results_table["requested_pair"] = n
   temp_results_table["pair_stack"] = 0
   -- Loop through the buffer line starting with the line the cursor is on
-  for line_no = buffer_next_indexes[LINE], #buffer do
+  for line_no = cursor_position[LINE], #buffer do
     -- If not already found find the closing pair
     if closing_index then break end
     local line = buffer[line_no]
-    if line_no > buffer_next_indexes[LINE] then
+    if line_no > cursor_position[LINE] then
       -- Loop through the characters in the line from the start if cursor is not on the line
       for col_no = 1, #line do
         temp_results_table = find_bracket_index(line, line_no, col_no, pair, temp_results_table["pair_stack"], temp_results_table["requested_pair"], nested, false)
@@ -183,8 +173,24 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
       end
     else
       -- Loop through the characters in the line from the cursor position if cursor is on the line
-      for col_no = buffer_next_indexes[COLUMN], #line do
-        temp_results_table = find_bracket_index(line, line_no, col_no, pair, temp_results_table["pair_stack"], temp_results_table["requested_pair"], nested, false)
+      -- Start earlier to find closing bracket when already *inside* the closing bracket
+      local correction = 1 - #pair[CLOSING]
+      if not nested or (opening_index[LINE] == cursor_position[LINE] and opening_index[COLUMN] == cursor_position[COLUMN]) then
+        correction = 1
+      end
+      for col_no = cursor_position[COLUMN] + correction, #line do
+        temp_results_table = find_bracket_index(
+          line,
+          line_no,
+          col_no,
+          pair,
+          temp_results_table["pair_stack"],
+          temp_results_table["requested_pair"],
+          nested,
+          false,
+          -- cursor could be inside an opening bracket, don't add to the pair_stack in that case
+          col_no - cursor_position[COLUMN] - correction < #pair[OPENING]
+        )
         if temp_results_table["error"] then
           return nil
         end
@@ -197,6 +203,8 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
     end
   end
 
+  if closing_index == nil then return end
+
   if func then
     -- Find the start of the function name.
     for col_no = opening_index[COLUMN] - 1, 1, -1 do
@@ -208,11 +216,7 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
     end
   end
 
-  if (opening_index and closing_index) then
-    return {opening_index, closing_index, function_start_index, remove_space_after_opening, remove_space_before_closing}
-  else
-    return nil
-  end
+  return {opening_index, closing_index, function_start_index, remove_space_after_opening, remove_space_before_closing}
 end
 
 --- Find the surrounding pair.
