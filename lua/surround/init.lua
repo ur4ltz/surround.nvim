@@ -62,6 +62,7 @@ function M.surround_add(op_mode, surrounding, motion)
 		-- When called from visual mode, the command cannot be repeated
 		vim.g.surround_last_cmd = nil
 	end
+	vim.api.nvim_command('silent! call repeat#set("\\<Plug>SurroundRepeat", 1)')
 
 	-- Get the pair to add
 	local surround_pairs = vim.g.surround_pairs
@@ -249,6 +250,7 @@ function M.surround_delete(char)
 	print("Deleted surrounding ", char)
 
 	-- Set Last CMD
+	vim.api.nvim_command('silent! call repeat#set("\\<Plug>SurroundRepeat", 1)')
 	vim.g.surround_last_cmd = { "surround_delete", { char } }
 end
 
@@ -436,6 +438,7 @@ function M.surround_replace(
 			"surround_replace",
 			{ false, vim.NIL, vim.NIL, vim.NIL, vim.NIL, vim.NIL, char_1, char_2, func_name },
 		}
+		vim.api.nvim_command('silent! call repeat#set("\\<Plug>SurroundRepeat", 1)')
 	end
 end
 
@@ -476,6 +479,7 @@ function M.toggle_quotes()
 				)
 			end
 			vim.g.surround_last_cmd = { "toggle_quotes", {} }
+			vim.api.nvim_command('silent! call repeat#set("\\<Plug>SurroundRepeat", 1)')
 			return
 		end
 	end
@@ -539,6 +543,7 @@ function M.toggle_brackets(n)
 				)
 			end
 			vim.g.surround_last_cmd = { "toggle_brackets", { n } }
+			vim.api.nvim_command('silent! call repeat#set("\\<Plug>SurroundRepeat", 1)')
 			return
 		end
 	end
@@ -561,11 +566,17 @@ function M.repeat_last()
 	end
 	local str_args = table.concat(args, ",")
 	vim.cmd("lua require'surround'." .. fun .. "(" .. utils.get(str_args, "") .. ")")
+	vim.api.nvim_command('silent! call repeat#set("\\<Plug>SurroundRepeat", 1)')
 end
 
 function M.set_keymaps()
 	local function map(mode, key, cmd)
-		vim.api.nvim_set_keymap(mode, key, cmd, { noremap = true })
+		if string.find(cmd, "<Plug>") then
+			-- <Plug> does not work with noremap
+			vim.api.nvim_set_keymap(mode, key, cmd, {})
+		else
+			vim.api.nvim_set_keymap(mode, key, cmd, { noremap = true })
+		end
 	end
 
 	if vim.g.surround_mappings_style == "sandwich" then
@@ -578,7 +589,7 @@ function M.set_keymaps()
 		-- Cycle surrounding brackets
 		map("n", vim.g.surround_prefix .. "tB", "<cmd>lua require'surround'.toggle_brackets(0)<cr>")
 		-- Repeat Last surround command
-		map("n", vim.g.surround_prefix .. vim.g.surround_prefix, "<cmd>lua require'surround'.repeat_last()<cr>")
+		map("n", vim.g.surround_prefix .. vim.g.surround_prefix, "<Plug>SurroundRepeat")
 
 		-- Main Maps
 		-- Surround Add
@@ -600,6 +611,7 @@ function M.set_keymaps()
 		-- Surround Replace
 		map("n", "cs", "<cmd>lua require'surround'.surround_replace()<cr>")
 	end
+	map("n", "<Plug>SurroundRepeat", "<cmd>lua require'surround'.repeat_last()<cr>")
 
 	if vim.g.surround_map_insert_mode then
 		-- Insert Mode Ctrl-S mappings
