@@ -9,18 +9,16 @@ local COLUMN = 2
 
 --- Find index of bracket
 -- @param line The content of the current line.
--- @param line_no The line number in the buffer.
 -- @param col_no The column number to look at.
 -- @param pair The bracket pair to look for.
 -- @param pair_stack The depth of the currently nested brackets.
--- @param requested_pair The leve of depth relative to nested pair that should be removed
--- @param nested Boolean value indicating whether to look for nested or non-nested brackets.
+-- @param requested_pair The level of depth relative to nested pair that should be removed
 -- @param opening Boolean value indicating whether to look for the opening bracket. A false value will look for the closing bracket.
--- @return A table containing the values: error, index, remove_space, requested_pair, pair_stack
-local function find_bracket_index(line, line_no, col_no, pair, pair_stack, requested_pair, nested, opening, no_create_pair_stack)
+-- @return A table containing the values: index_col, space, requested_pair, pair_stack
+local function find_bracket_index(line, col_no, pair, pair_stack, requested_pair, opening, no_create_pair_stack)
 
-  local remove_space = false
-  local index = nil
+  local space = false
+  local index_col = nil
 
   local primary
   local opposite
@@ -41,51 +39,82 @@ local function find_bracket_index(line, line_no, col_no, pair, pair_stack, reque
   curr_char[opposite] = line:sub(col_no, col_no + #pair[opposite] - 1)
 
 
-  if nested then
-    -- If found the opposite bracket, add it to the pair stack
-    if (curr_char[opposite] == pair[opposite] and prev_char ~= "\\" and not no_create_pair_stack) then
-      pair_stack = pair_stack + 1
-    end
-    if (curr_char[primary] == pair[primary] and prev_char ~= "\\") then
-      -- if the pair stack is empty set the indexes
-      if pair_stack <= 0 then
-        if requested_pair == 0 then
-          if primary == OPENING and next_char == " " then
-            remove_space = true
-          end
-          if primary == CLOSING and prev_char == " " then
-            remove_space = true
-          end
-          index = {line_no, col_no}
-        end
-        requested_pair = requested_pair - 1
-      end
-      pair_stack = pair_stack - 1
-    end
-  else
-    if (curr_char[primary] == pair[primary] and prev_char ~= "\\") then
-      if primary == OPENING and next_char == " " then
-        remove_space = true
-      end
-      if primary == CLOSING and prev_char == " " then
-        remove_space = true
-      end
-      index = {line_no, col_no}
-    elseif (curr_char[opposite] == pair[opposite] and prev_char ~= "\\") then
-      -- since items are non-nested, finding opposite bracket first is a show-stopper
-      return { error = true }
-    end
+  -- If found the opposite bracket, add it to the pair stack
+  if (curr_char[opposite] == pair[opposite] and prev_char ~= "\\" and not no_create_pair_stack) then
+    pair_stack = pair_stack + 1
   end
+  if (curr_char[primary] == pair[primary] and prev_char ~= "\\") then
+    -- if the pair stack is empty set the indexes
+    if pair_stack <= 0 then
+      if requested_pair == 0 then
+        if primary == OPENING and next_char == " " then
+          space = true
+        end
+        if primary == CLOSING and prev_char == " " then
+          space = true
+        end
+        index_col = col_no
+      end
+      requested_pair = requested_pair - 1
+    end
+    pair_stack = pair_stack - 1
+  end
+
   return {
-    error = false,
-    index = index,
-    remove_space = remove_space,
+    index_col = index_col,
+    space = space,
     requested_pair = requested_pair,
     pair_stack = pair_stack
   }
 end
 
-local function get_pair_positions(buffer, cursor_position, surrounding_char, n, nested, func, includes)
+local function get_linear_pair_positions(buffer, cursor_position, surrounding_char)
+  local is_finding_opening = true
+  local pair = utils.get_char_pair(surrounding_char)
+
+  local opening_index
+  local closing_index
+  local space_after_opening
+  local space_before_closing
+
+  local line_no = cursor_position[LINE]
+  local line = buffer[line_no]
+
+  for col_no = 1, #line do
+    -- Get the character currently looping through and the previous one for escaping purposes
+    local prev_char = line:sub(col_no - 1, col_no - 1)
+    local next_char = line:sub(col_no + #pair[OPENING], col_no + #pair[OPENING])
+
+    local curr_char = {}
+    curr_char[OPENING] = line:sub(col_no, col_no + #pair[OPENING] - 1)
+    curr_char[CLOSING] = line:sub(col_no, col_no + #pair[CLOSING] - 1)
+
+    if (is_finding_opening) then -- if finding the first char do this
+      if col_no > cursor_position[COLUMN] then -- Break out if there are no surrounding surround_pairs
+        return
+      end
+      if (curr_char[OPENING] == pair[OPENING] and prev_char ~= "\\") then
+        is_finding_opening = false -- found first pair now find last pair
+        opening_index = {line_no, col_no}
+        space_after_opening = next_char == " "
+      end
+    else -- if finding the last char then do this
+      if (curr_char[CLOSING] == pair[CLOSING] and prev_char ~= "\\") then
+        if prev_char == " " then
+          space_before_closing = true
+        end
+        if col_no >= cursor_position[COLUMN] then
+          closing_index = {line_no, col_no}
+          -- third return value is start of function name; not relevant but here to be consistent with find_nested_pair_positions
+          return {opening_index, closing_index, nil, space_after_opening, space_before_closing}
+        end
+        is_finding_opening = true -- found last pair now find first pair
+      end
+    end
+  end
+end
+
+local function get_nested_pair_positions(buffer, cursor_position, surrounding_char, n, func, includes)
   n = n or 0
 
   local temp_results_table = {}
@@ -95,8 +124,8 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
   local opening_index
   local closing_index
   local function_start_index
-  local remove_space_after_opening
-  local remove_space_before_closing
+  local space_after_opening
+  local space_before_closing
 
   -- Find opening character indexes
   -- Initialize pair stack
@@ -110,13 +139,10 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
     if line_no < cursor_position[LINE] then
       -- Loop through the line in reverse order if cursor is not on the line
       for col_no = #line, 1, -1 do
-        temp_results_table = find_bracket_index(line, line_no, col_no, pair, temp_results_table["pair_stack"], temp_results_table["requested_pair"], nested, true)
-        if temp_results_table["error"] then
-          return nil
-        end
-        if temp_results_table["index"] then
-          opening_index = temp_results_table["index"]
-          remove_space_after_opening = temp_results_table["remove_space"]
+        temp_results_table = find_bracket_index(line, col_no, pair, temp_results_table["pair_stack"], temp_results_table["requested_pair"], true)
+        if temp_results_table["index_col"] then
+          opening_index = {line_no, temp_results_table["index_col"]}
+          space_after_opening = temp_results_table["space"]
           break
         end
       end
@@ -125,22 +151,17 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
       for col_no = cursor_position[COLUMN], 1, -1 do
         temp_results_table = find_bracket_index(
           line,
-          line_no,
           col_no,
           pair,
           temp_results_table["pair_stack"],
           temp_results_table["requested_pair"],
-          nested,
           true,
           -- cursor could be inside a closing bracket, don't add to the pair_stack in that case
           cursor_position[COLUMN] - col_no < #pair[CLOSING]
         )
-        if temp_results_table["error"] then
-          return nil
-        end
-        if temp_results_table["index"] then
-          opening_index = temp_results_table["index"]
-          remove_space_after_opening = temp_results_table["remove_space"]
+        if temp_results_table["index_col"] then
+          opening_index = {line_no, temp_results_table["index_col"]}
+          space_after_opening = temp_results_table["space"]
           break
         end
       end
@@ -161,13 +182,10 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
     if line_no > cursor_position[LINE] then
       -- Loop through the characters in the line from the start if cursor is not on the line
       for col_no = 1, #line do
-        temp_results_table = find_bracket_index(line, line_no, col_no, pair, temp_results_table["pair_stack"], temp_results_table["requested_pair"], nested, false)
-        if temp_results_table["error"] then
-          return nil
-        end
-        if temp_results_table["index"] then
-          closing_index = temp_results_table["index"]
-          remove_space_before_closing = temp_results_table["remove_space"]
+        temp_results_table = find_bracket_index(line, col_no, pair, temp_results_table["pair_stack"], temp_results_table["requested_pair"], false)
+        if temp_results_table["index_col"] then
+          closing_index = {line_no, temp_results_table["index_col"]}
+          space_before_closing = temp_results_table["space"]
           break
         end
       end
@@ -175,28 +193,23 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
       -- Loop through the characters in the line from the cursor position if cursor is on the line
       -- Start earlier to find closing bracket when already *inside* the closing bracket
       local correction = 1 - #pair[CLOSING]
-      if not nested or (opening_index[LINE] == cursor_position[LINE] and opening_index[COLUMN] == cursor_position[COLUMN]) then
+      if opening_index[LINE] == cursor_position[LINE] and opening_index[COLUMN] == cursor_position[COLUMN] then
         correction = 1
       end
       for col_no = cursor_position[COLUMN] + correction, #line do
         temp_results_table = find_bracket_index(
           line,
-          line_no,
           col_no,
           pair,
           temp_results_table["pair_stack"],
           temp_results_table["requested_pair"],
-          nested,
           false,
           -- cursor could be inside an opening bracket, don't add to the pair_stack in that case
           col_no - cursor_position[COLUMN] - correction < #pair[OPENING]
         )
-        if temp_results_table["error"] then
-          return nil
-        end
-        if temp_results_table["index"] then
-          closing_index = temp_results_table["index"]
-          remove_space_before_closing = temp_results_table["remove_space"]
+        if temp_results_table["index_col"] then
+          closing_index = {line_no, temp_results_table["index_col"]}
+          space_before_closing = temp_results_table["space"]
           break
         end
       end
@@ -216,7 +229,7 @@ local function get_pair_positions(buffer, cursor_position, surrounding_char, n, 
     end
   end
 
-  return {opening_index, closing_index, function_start_index, remove_space_after_opening, remove_space_before_closing}
+  return {opening_index, closing_index, function_start_index, space_after_opening, space_before_closing}
 end
 
 --- Find the surrounding pair.
@@ -237,7 +250,7 @@ local function get_surround_pair(buffer, cursor_position, surrounding_char,
   if not table.contains(all_pairs, surrounding_char) then return nil end
 
   if (surrounding_char == "f") then
-    return get_pair_positions(buffer, cursor_position, "(", n, true, true, includes)
+    return get_nested_pair_positions(buffer, cursor_position, "(", n, true, includes)
   end
   -- Check if the character can be nested.
   local is_nestable = false
@@ -246,9 +259,9 @@ local function get_surround_pair(buffer, cursor_position, surrounding_char,
   end
 
   if (is_nestable) then
-    return get_pair_positions(buffer, cursor_position, surrounding_char, n, true)
+    return get_nested_pair_positions(buffer, cursor_position, surrounding_char, n)
   else
-    return get_pair_positions(buffer, cursor_position, surrounding_char, nil, false)
+    return get_linear_pair_positions(buffer, cursor_position, surrounding_char)
   end
 end
 
