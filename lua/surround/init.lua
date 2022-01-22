@@ -9,7 +9,6 @@ local CLOSING = 2
 local FUNCTION = 3
 local LINE = 1
 local COLUMN = 2
-local MAP_KEYS = { b = "(", B = "{", f = "f" }
 
 --- Surround selection.
 -- Adds a character surrounding the user's selection in either visual mode or operator pending mode.
@@ -66,25 +65,16 @@ function M.surround_add(op_mode, surrounding, motion)
 
 	-- Get the pair to add
 	local surround_pairs = vim.g.surround_pairs
-	local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
-	local char_pairs
-	for _, pair in ipairs(all_pairs) do
-		if table.contains(pair, char) then
-			char_pairs = pair
-			break
-		end
-	end
-	if char_pairs == nil and char ~= "f" then
-		return
-	end
+	local char_pairs = utils.get_char_pair(char)
+	if char_pairs == nil and char ~= "f" then return end
 
 	local space = ""
 	if vim.g.surround_space_on_closing_char then
-		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[CLOSING] then
+		if table.contains(surround_pairs.nestable, char) and char == char_pairs[CLOSING] then
 			space = " "
 		end
 	else
-		if table.contains(vim.tbl_flatten(surround_pairs.nestable), char) and char == char_pairs[OPENING] then
+		if table.contains(surround_pairs.nestable, char) and char == char_pairs[OPENING] then
 			space = " "
 		end
 	end
@@ -175,43 +165,27 @@ function M.surround_add(op_mode, surrounding, motion)
 	-- Get out of visual mode
 	local key = vim.api.nvim_replace_termcodes("<esc>", true, false, true)
 	vim.api.nvim_feedkeys(key, "v", true)
-
-	-- Reset Cursor Position
-	-- vim.api.nvim_win_set_cursor(0, cursor_position)
-
-	-- Feedback
-	print("Added surrounding ", char)
 end
 
 function M.surround_delete(char)
 	local cursor_position = vim.api.nvim_win_get_cursor(0)
 	local start_line, end_line
 	local top_offset = 0
-	local surround_pairs = vim.g.surround_pairs
 	local context
 	local n = 0
-	if char == nil then
-		char = vim.fn.nr2char(vim.fn.getchar())
+	if not char then
+		char = utils.get_surround_chars()
 		if utils.has_value({ "2", "3", "4", "5", "6", "7", "8", "9" }, char) then
 			n = tonumber(char) - 1
-			char = vim.fn.nr2char(vim.fn.getchar())
-		end
-		for i, v in pairs(MAP_KEYS) do
-			if char == i then
-				char = v
-				break
-			end
+			char = utils.get_surround_chars()
 		end
 	end
 
+	local char_pairs = utils.get_char_pair(char)
+	if char_pairs == nil and char ~= "f" then return end
+
 	-- Get context
-	if table.contains(vim.tbl_flatten(surround_pairs.linear), char) then
-		start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(0)
-	elseif char == "f" then
-		start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
-	else
-		start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
-	end
+	start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
 	context = vim.api.nvim_call_function("getline", { start_line, end_line })
 	local cursor_position_relative = cursor_position
 	cursor_position_relative[LINE] = cursor_position[LINE] - top_offset
@@ -223,8 +197,13 @@ function M.surround_delete(char)
 
 	-- If no surrounding pairs found bail out
 	if not indexes then
+		print("No surrounding " .. char .. " found")
 		return
 	end
+
+	-- indexes[3] is the function start index
+	local space_opening = (indexes[4] and 1) or 0
+	local space_closing = (indexes[5] and 1) or 0
 
 	if char == "f" then
 		-- Handle functions
@@ -236,22 +215,37 @@ function M.surround_delete(char)
 		)
 	else
 		-- Remove surrounding character  matches
-		context[indexes[CLOSING][LINE]] = string.remove(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN])
-		context[indexes[OPENING][LINE]] = string.remove(context[indexes[OPENING][LINE]], indexes[OPENING][COLUMN])
+		context[indexes[CLOSING][LINE]] = string.remove(
+			context[indexes[CLOSING][LINE]],
+			indexes[CLOSING][COLUMN] - space_closing,
+			indexes[CLOSING][COLUMN] + #char_pairs[CLOSING]
+		)
+		context[indexes[OPENING][LINE]] = string.remove(
+			context[indexes[OPENING][LINE]],
+			indexes[OPENING][COLUMN],
+			indexes[OPENING][COLUMN] + #char_pairs[OPENING] + space_opening
+		)
 	end
 
 	-- Replace Buffer
 	vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, true, context)
 
-	-- Reset Cursor Position
-	-- vim.api.nvim_win_set_cursor(0, cursor_position)
-
-	-- Feedback
-	print("Deleted surrounding ", char)
-
 	-- Set Last CMD
 	vim.api.nvim_command('silent! call repeat#set("\\<Plug>SurroundRepeat", 1)')
 	vim.g.surround_last_cmd = { "surround_delete", { char } }
+
+	-- return the adjusted positions of previous surroundings
+	if indexes[OPENING][LINE] == indexes[CLOSING][LINE] and char ~= "f" then
+		return {
+			indexes[OPENING],
+			{
+				indexes[CLOSING][LINE],
+				indexes[CLOSING][COLUMN] - #char_pairs[OPENING] - space_opening - space_closing
+			}
+		}
+	else
+		return indexes
+	end
 end
 
 function M.surround_replace(
@@ -265,24 +259,15 @@ function M.surround_replace(
 	char_2,
 	func_name
 )
-	local surround_pairs = vim.g.surround_pairs
 	local n = 0
 	if not is_toggle then
 		if not char_1 then
-			char_1 = vim.fn.nr2char(vim.fn.getchar())
+			char_1 = utils.get_surround_chars()
 			if utils.has_value({ "2", "3", "4", "5", "6", "7", "8", "9" }, char_1) then
 				n = tonumber(char_1) - 1
-				char_1 = vim.fn.nr2char(vim.fn.getchar())
+				char_1 = utils.get_surround_chars()
 			end
-			char_2 = vim.fn.nr2char(vim.fn.getchar())
-			for i, v in pairs(MAP_KEYS) do
-				if char_1 == i then
-					char_1 = v
-				end
-				if char_2 == i then
-					char_2 = v
-				end
-			end
+			char_2 = utils.get_surround_chars()
 		end
 	end
 
@@ -290,13 +275,7 @@ function M.surround_replace(
 		top_offset = 0
 		local cursor_position = vim.api.nvim_win_get_cursor(0)
 		-- Get context
-		if table.contains(vim.tbl_flatten(surround_pairs.linear), char_1) then
-			start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(0)
-		elseif char_1 == "f" then
-			start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
-		else
-			start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
-		end
+		start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
 		context = vim.api.nvim_call_function("getline", { start_line, end_line })
 		cursor_position_relative = cursor_position
 		cursor_position_relative[LINE] = cursor_position[LINE] - top_offset
@@ -341,32 +320,40 @@ function M.surround_replace(
 		end
 
 		-- Get the pair to replace with
-		local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
-		local char_2_pairs
-		for _, pair in ipairs(all_pairs) do
-			if table.contains(pair, char_2) then
-				char_2_pairs = pair
-				break
+		local char_2_pairs = utils.get_char_pair(char_2)
+		if char_2_pairs == nil then return end
+
+		local space = ""
+		local surround_pairs = vim.g.surround_pairs
+		if vim.g.surround_space_on_closing_char then
+			if table.contains(surround_pairs.nestable, char_2) and char_2 == char_2_pairs[CLOSING] then
+				space = " "
 			end
-		end
-		if char_2_pairs == nil then
-			return
+		else
+			if table.contains(surround_pairs.nestable, char_2) and char_2 == char_2_pairs[OPENING] then
+				space = " "
+			end
 		end
 
 		-- Replace surrounding brackets with char_2 and remove function
-		context[indexes[OPENING][LINE]] = string.set(
-			context[indexes[OPENING][LINE]],
-			indexes[OPENING][COLUMN],
-			char_2_pairs[1]
-		)
-		context[indexes[CLOSING][LINE]] = string.set(
+		local indexes_func = indexes[FUNCTION]
+		indexes = M.surround_delete("(")
+		-- get new context after delete()
+		context = vim.api.nvim_call_function("getline", { start_line, end_line })
+
+		context[indexes[CLOSING][LINE]] = string.insert(
 			context[indexes[CLOSING][LINE]],
 			indexes[CLOSING][COLUMN],
-			char_2_pairs[2]
+			space..char_2_pairs[CLOSING]
 		)
-		context[indexes[FUNCTION][LINE]] = string.remove(
-			context[indexes[FUNCTION][LINE]],
-			indexes[FUNCTION][COLUMN],
+		context[indexes[OPENING][LINE]] = string.insert(
+			context[indexes[OPENING][LINE]],
+			indexes[OPENING][COLUMN],
+			char_2_pairs[OPENING]..space
+		)
+		context[indexes_func[LINE]] = string.remove(
+			context[indexes_func[LINE]],
+			indexes_func[COLUMN],
 			indexes[OPENING][COLUMN]
 		)
 	elseif char_2 == "f" then
@@ -382,55 +369,55 @@ function M.surround_replace(
 		if not func_name then
 			func_name = utils.user_input("funcname: ")
 		end
-		context[indexes[OPENING][LINE]] = string.set(context[indexes[OPENING][LINE]], indexes[OPENING][COLUMN], "(")
-		context[indexes[CLOSING][LINE]] = string.set(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN], ")")
+		indexes = M.surround_delete(char_1)
+		-- get new context after delete()
+		context = vim.api.nvim_call_function("getline", { start_line, end_line })
+
+		context[indexes[CLOSING][LINE]] = string.insert(context[indexes[CLOSING][LINE]], indexes[CLOSING][COLUMN], ")")
+		context[indexes[OPENING][LINE]] = string.insert(context[indexes[OPENING][LINE]], indexes[OPENING][COLUMN], "(")
 		context[indexes[OPENING][LINE]] = string.insert(
 			context[indexes[OPENING][LINE]],
 			indexes[OPENING][COLUMN],
 			func_name
 		)
 	else
-		local indexes = parser.get_surround_pair(context, cursor_position_relative, char_1, {}, n)
+		-- Get the pair to replace with
+		local char_2_pairs = utils.get_char_pair(char_2)
+		if char_2_pairs == nil then return end
 
+		local indexes = M.surround_delete(char_1)
 		-- Bail out if no surrounding pairs found.
 		if not indexes then
-			print("No surrounding " .. char_1 .. " found")
 			return
 		end
+		context = vim.api.nvim_call_function("getline", { start_line, end_line })
 
-		-- Get the pair to replace with
-		local all_pairs = table.merge(surround_pairs.nestable, surround_pairs.linear)
-		local char_2_pairs
-		for _, pair in ipairs(all_pairs) do
-			if table.contains(pair, char_2) then
-				char_2_pairs = pair
-				break
+		local space = ""
+		local surround_pairs = vim.g.surround_pairs
+		if vim.g.surround_space_on_closing_char then
+			if table.contains(surround_pairs.nestable, char_2) and char_2 == char_2_pairs[CLOSING] then
+				space = " "
+			end
+		else
+			if table.contains(surround_pairs.nestable, char_2) and char_2 == char_2_pairs[OPENING] then
+				space = " "
 			end
 		end
-		if char_2_pairs == nil then
-			return
-		end
-		-- Replace char_1 with char_2
-		context[indexes[OPENING][LINE]] = string.set(
-			context[indexes[OPENING][LINE]],
-			indexes[OPENING][COLUMN],
-			char_2_pairs[OPENING]
-		)
-		context[indexes[CLOSING][LINE]] = string.set(
+
+		context[indexes[CLOSING][LINE]] = string.insert(
 			context[indexes[CLOSING][LINE]],
 			indexes[CLOSING][COLUMN],
-			char_2_pairs[CLOSING]
+			space..char_2_pairs[CLOSING]
+		)
+		context[indexes[OPENING][LINE]] = string.insert(
+			context[indexes[OPENING][LINE]],
+			indexes[OPENING][COLUMN],
+			char_2_pairs[OPENING]..space
 		)
 	end
 
 	-- Replace buffer
 	vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, true, context)
-
-	-- Reset cursor position
-	-- vim.api.nvim_win_set_cursor(0, cursor_position)
-
-	-- Feedback
-	print("Replaced ", char_1, " with ", char_2)
 
 	-- Set last_cmd if not a toggle triggered the function
 	if not is_toggle then
@@ -615,10 +602,21 @@ function M.set_keymaps()
 
 	if vim.g.surround_map_insert_mode then
 		-- Insert Mode Ctrl-S mappings
-		for _, pair in ipairs(table.merge(vim.g.surround_pairs.nestable, vim.g.surround_pairs.linear)) do
-			map("i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>")
-			map("i", "<c-s>" .. pair[OPENING] .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>")
-			map("i", "<c-s>" .. pair[OPENING] .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
+		for key, pair in pairs(vim.g.surround_pairs_flat) do
+			if #pair[OPENING] == 1 then
+				map("i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>")
+				map("i", "<c-s>" .. pair[OPENING] .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>")
+				map("i", "<c-s>" .. pair[OPENING] .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
+			end
+
+			local left = ""
+			for _ in string.gmatch(pair[CLOSING], ".") do
+				left = left .. "<left>"
+			end
+
+			map("i", "<c-s>" .. key, pair[OPENING] .. pair[CLOSING] .. left)
+			map("i", "<c-s>" .. key .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. left .. "<left>")
+			map("i", "<c-s>" .. key .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
 		end
 	end
 end
@@ -644,14 +642,50 @@ function M.setup(opts)
 			vim.g["surround_" .. opt] = default
 		end
 	end
+
+	local default_pairs = {
+		nestable = { b = { "(", ")" }, s = { "[", "]" }, B = { "{", "}" }, a = { "<", ">" } },
+		linear = { q = { "'", "'" }, t = { "`", "`" }, d = { '"', '"' } },
+	}
+
+	-- instead of letting users completely overwrite the table, add default items to their list
+	local user_pairs = (opts.pairs or vim.g.surround_pairs) or {}
+	local combined_pairs = {}
+	local tmp_keys = {}
+	local counter = 1
+	for _,option in ipairs({"nestable", "linear"}) do
+		user_pairs[option] = user_pairs[option] or {}
+		combined_pairs[option] = combined_pairs[option] or {}
+		for k,v in pairs(user_pairs[option]) do
+			if type(k) == "number" then
+				-- to store the table in a vim variable, all entries need a string key
+				combined_pairs[option]["surround_"..counter] = v
+				counter = counter + 1
+			else
+				table.insert(tmp_keys, k)
+				combined_pairs[option][k] = v
+			end
+		end
+		for k,v in pairs(default_pairs[option]) do
+			if not table.contains(tmp_keys, k) then
+				-- do not add duplicate keys to prevent ambiguity and to not overwrite user choices
+				table.insert(tmp_keys, k)
+				combined_pairs[option][k] = v
+			elseif not table.contains(user_pairs, v) then
+				-- to store the table in a vim variable, all entries need a string key
+				combined_pairs[option]["surround_"..counter] = v
+				counter = counter + 1
+			end
+		end
+	end
+	vim.g.surround_pairs = combined_pairs
+	vim.g.surround_pairs_flat = table.merge_preserve_keys(combined_pairs.nestable, combined_pairs.linear)
+
+
 	vim.cmd("function! SurroundNoop(type, ...)\nendfunction")
 	set_default("mappings_style", "sandwich")
 	set_default("map_insert_mode", true)
 	set_default("prefix", "s")
-	set_default("pairs", {
-		nestable = { { "(", ")" }, { "[", "]" }, { "{", "}" }, { "<", ">" } },
-		linear = { { "'", "'" }, { "`", "`" }, { '"', '"' } },
-	})
 	set_default("load_autogroups", false)
 	if vim.g.surround_load_autogroups then
 		M.load_autogroups({
@@ -666,6 +700,7 @@ function M.setup(opts)
 	end
 	set_default("context_offset", 100)
 	set_default("space_on_closing_char", false)
+	set_default("space_on_alias", false)
 	set_default("quotes", { "'", '"' })
 	set_default("brackets", { "(", "{", "[" })
 	set_default("load_keymaps", true)

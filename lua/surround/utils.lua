@@ -18,6 +18,17 @@ function table.merge(t1, t2)
 	return tmp
 end
 
+function table.merge_preserve_keys(t1, t2)
+	local tmp = {}
+	for k, v in pairs(t1) do
+		tmp[k]=v
+	end
+	for k, v in pairs(t2) do
+		tmp[k]=v
+	end
+	return tmp
+end
+
 function table.contains(tbl, string)
 	for k, v in pairs(tbl) do
 		if type(v) == "table" then
@@ -234,31 +245,45 @@ local function get_char()
 	end
 end
 
-local MAP_KEYS = { b = "(", B = "{", f = "f" }
-local function get_surround_chars()
-	vim.api.nvim_command(':echo "(Surround) Character: "')
+local function get_surround_chars(surrounding)
+	if not surrounding then
+		vim.api.nvim_command(':echo "(Surround) Character: "')
+		_, surrounding = get_char()
 
-	local _, surrounding = get_char()
+		-- 27 is <ESC>
+		if surrounding == 27 then return nil end
 
-	-- 27 is <ESC>
-	if surrounding == 27 then return nil end
-
-	clear_output_buffer()
-	-- escape potential " character
-	if not string.isalnum(surrounding) then
-		vim.api.nvim_command(':echomsg "(Surround) Character: \\' .. surrounding .. '"')
-	else
-		vim.api.nvim_command(':echomsg "(Surround) Character: ' .. surrounding .. '"')
+		clear_output_buffer()
+		-- escape characters
+		if not string.isalnum(surrounding) then
+			vim.api.nvim_command(':echomsg "(Surround) Character: \\' .. surrounding .. '"')
+		else
+			vim.api.nvim_command(':echomsg "(Surround) Character: ' .. surrounding .. '"')
+		end
 	end
 
-	for i, v in pairs(MAP_KEYS) do
+	for i,v in pairs(vim.g.surround_pairs_flat) do
 		if surrounding == i then
-			surrounding = v
+			local sa = vim.g.surround_space_on_alias
+			local sc = vim.g.surround_space_on_closing_char
+			if sa then
+				surrounding = (sc and v[2]) or v[1]
+			else
+				surrounding = (sc and v[1]) or v[2]
+			end
 			break
 		end
 	end
 
 	return surrounding
+end
+
+local function get_char_pair(char)
+	for _, pair in pairs(vim.g.surround_pairs_flat) do
+		if table.contains(pair, char) then
+			return pair
+		end
+	end
 end
 
 local function map(table, func)
@@ -414,6 +439,7 @@ return {
 	get_visual_pos = get_visual_pos,
 	get_operator_pos = get_operator_pos,
 	get_motion = get_motion,
+	get_char_pair = get_char_pair,
 	get_surround_chars = get_surround_chars,
 	get_char = get_char,
 	clear_output_buffer = clear_output_buffer,
