@@ -175,7 +175,6 @@ local function user_input(message)
 	vim.api.nvim_call_function("inputsave", {})
 	local val = vim.api.nvim_call_function("input", { message })
 	vim.api.nvim_call_function("inputrestore", {})
-	vim.api.nvim_command('echo "\r                          \r"')
 	return val
 end
 
@@ -232,7 +231,9 @@ local function has_value(tab, val)
 end
 
 local function clear_output_buffer()
-	vim.api.nvim_feedkeys("<C-l>", "x", true)
+	vim.api.nvim_call_function("inputsave", {})
+	vim.api.nvim_feedkeys(':','nx', true)
+	vim.api.nvim_call_function("inputrestore", {})
 end
 
 local function get_char()
@@ -248,10 +249,11 @@ end
 local function get_surround_chars(surrounding)
 	if not surrounding then
 		vim.api.nvim_command(':echo "(Surround) Character: "')
-		_, surrounding = get_char()
+		local char_nr
+		char_nr, surrounding = get_char()
 
 		-- 27 is <ESC>
-		if surrounding == 27 then return nil end
+		if char_nr == 27 then return nil end
 
 		clear_output_buffer()
 		-- escape characters
