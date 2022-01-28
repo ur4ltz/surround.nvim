@@ -582,7 +582,7 @@ function M.set_keymaps()
 
 	if vim.g.surround_mappings_style == "sandwich" then
 		map("n", vim.g.surround_prefix .. vim.g.surround_prefix, "<Plug>SurroundRepeat")
-		map("v", vim.g.surround_prefix,         "<Plug>SurroundAddVisual")
+		map("x", vim.g.surround_prefix,         "<Plug>SurroundAddVisual")
 		map("n", vim.g.surround_prefix .. "a",  "<Plug>SurroundAddNormal")
 		map("n", vim.g.surround_prefix .. "d",  "<Plug>SurroundDelete")
 		map("n", vim.g.surround_prefix .. "r",  "<Plug>SurroundReplace")
@@ -590,7 +590,7 @@ function M.set_keymaps()
 		map("n", vim.g.surround_prefix .. "tb", "<Plug>SurroundToggleBrackets")
 		map("n", vim.g.surround_prefix .. "tB", "<Plug>SurroundToggleBrackets")
 	elseif vim.g.surround_mappings_style == "surround" then
-		map("v", "s",  "<Plug>SurroundAddVisual")
+		map("x", "s",  "<Plug>SurroundAddVisual")
 		map("n", "ys", "<Plug>SurroundAddNormal")
 		map("n", "ds", "<Plug>SurroundDelete")
 		map("n", "cs", "<Plug>SurroundReplace")
