@@ -473,6 +473,7 @@ function M.toggle_quotes()
 end
 
 function M.toggle_brackets(n)
+	n = n or 0
 	local cursor_position = vim.api.nvim_win_get_cursor(0)
 	local start_line, end_line, top_offset, _ = utils.get_line_numbers_by_offset(vim.g.surround_context_offset)
 	local context = vim.api.nvim_call_function("getline", { start_line, end_line })
@@ -566,57 +567,52 @@ function M.set_keymaps()
 		end
 	end
 
-	if vim.g.surround_mappings_style == "sandwich" then
-		-- Special Maps
-		map("n", vim.g.surround_prefix .. "a", "<cmd>lua require'surround'.surround_add(true)<cr>")
-		-- Cycle surrounding quotes
-		map("n", vim.g.surround_prefix .. "tq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
-		-- Cycle surrounding brackets
-		map("n", vim.g.surround_prefix .. "tb", "<cmd>lua require'surround'.toggle_brackets(0)<cr>")
-		-- Cycle surrounding brackets
-		map("n", vim.g.surround_prefix .. "tB", "<cmd>lua require'surround'.toggle_brackets(0)<cr>")
-		-- Repeat Last surround command
-		map("n", vim.g.surround_prefix .. vim.g.surround_prefix, "<Plug>SurroundRepeat")
+	-- vim will only set '< and '> marks when using gv to re-select last visual selection
+	map("v", "<Plug>SurroundAddVisual",        "<esc>gv<cmd>lua require('surround').surround_add(false)<cr>")
+	map("n", "<Plug>SurroundAddNormal",        "<cmd>lua require('surround').surround_add(true)<cr>")
+	map("n", "<Plug>SurroundDelete",           "<cmd>lua require('surround').surround_delete()<cr>")
+	map("n", "<Plug>SurroundReplace",          "<cmd>lua require('surround').surround_replace()<cr>")
+	map("n", "<Plug>SurroundRepeat",           "<cmd>lua require('surround').repeat_last()<cr>")
+	map("n", "<Plug>SurroundToggleQuotes",     "<cmd>lua require('surround').toggle_quotes()<cr>")
+	map("n", "<Plug>SurroundToggleBrackets",   "<cmd>lua require('surround').toggle_brackets()<cr>")
 
-		-- Main Maps
-		-- Surround Add
-		map("v", vim.g.surround_prefix, "<esc>gv<cmd>lua require'surround'.surround_add()<cr>")
-		-- Surround Delete
-		map("n", vim.g.surround_prefix .. "d", "<cmd>lua require'surround'.surround_delete()<cr>")
-		-- Surround Replace
-		map("n", vim.g.surround_prefix .. "r", "<cmd>lua require'surround'.surround_replace()<cr>")
-	elseif vim.g.surround_mappings_style == "surround" then
-		-- Special Maps
-		map("n", "ys", "<cmd>lua require'surround'.surround_add(true)<cr>")
-		-- Cycle surrounding quotes
-		map("n", "cq", "<cmd>lua require'surround'.toggle_quotes()<cr>")
-		-- Normal Mode Maps
-		-- Surround Add
-		map("v", "s", "<esc>gv<cmd>lua require'surround'.surround_add()<cr>")
-		-- Surround Delete
-		map("n", "ds", "<cmd>lua require'surround'.surround_delete()<cr>")
-		-- Surround Replace
-		map("n", "cs", "<cmd>lua require'surround'.surround_replace()<cr>")
+	if not vim.g.surround_load_keymaps then
+		return
 	end
-	map("n", "<Plug>SurroundRepeat", "<cmd>lua require'surround'.repeat_last()<cr>")
+
+	if vim.g.surround_mappings_style == "sandwich" then
+		map("n", vim.g.surround_prefix .. vim.g.surround_prefix, "<Plug>SurroundRepeat")
+		map("x", vim.g.surround_prefix,         "<Plug>SurroundAddVisual")
+		map("n", vim.g.surround_prefix .. "a",  "<Plug>SurroundAddNormal")
+		map("n", vim.g.surround_prefix .. "d",  "<Plug>SurroundDelete")
+		map("n", vim.g.surround_prefix .. "r",  "<Plug>SurroundReplace")
+		map("n", vim.g.surround_prefix .. "tq", "<Plug>SurroundToggleQuotes")
+		map("n", vim.g.surround_prefix .. "tb", "<Plug>SurroundToggleBrackets")
+		map("n", vim.g.surround_prefix .. "tB", "<Plug>SurroundToggleBrackets")
+	elseif vim.g.surround_mappings_style == "surround" then
+		map("x", "s",  "<Plug>SurroundAddVisual")
+		map("n", "ys", "<Plug>SurroundAddNormal")
+		map("n", "ds", "<Plug>SurroundDelete")
+		map("n", "cs", "<Plug>SurroundReplace")
+		map("n", "cq", "<Plug>SurroundToggleQuotes")
+	end
 
 	if vim.g.surround_map_insert_mode then
 		-- Insert Mode Ctrl-S mappings
 		for key, pair in pairs(vim.g.surround_pairs_flat) do
-			if #pair[OPENING] == 1 then
-				map("i", "<c-s>" .. pair[OPENING], pair[OPENING] .. pair[CLOSING] .. "<left>")
-				map("i", "<c-s>" .. pair[OPENING] .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. "<left><left>")
-				map("i", "<c-s>" .. pair[OPENING] .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
-			end
-
-			local left = ""
-			for _ in string.gmatch(pair[CLOSING], ".") do
-				left = left .. "<left>"
-			end
+			local left = string.rep("<left>", #pair[CLOSING])
 
 			map("i", "<c-s>" .. key, pair[OPENING] .. pair[CLOSING] .. left)
 			map("i", "<c-s>" .. key .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. left .. "<left>")
 			map("i", "<c-s>" .. key .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
+
+			for side = 1, 2 do
+				if #pair[side] == 1 then
+					map("i", "<c-s>" .. pair[side], pair[OPENING] .. pair[CLOSING] .. left)
+					map("i", "<c-s>" .. pair[side] .. " ", pair[OPENING] .. "  " .. pair[CLOSING] .. left .. "<left>")
+					map("i", "<c-s>" .. pair[side] .. "<c-s>", pair[OPENING] .. "<cr>" .. pair[CLOSING] .. "<esc>O")
+				end
+			end
 		end
 	end
 end
@@ -659,7 +655,7 @@ function M.setup(opts)
 		for k,v in pairs(user_pairs[option]) do
 			if type(k) == "number" then
 				-- to store the table in a vim variable, all entries need a string key
-				combined_pairs[option]["surround_"..counter] = v
+				combined_pairs[option]["!surround_"..counter] = v
 				counter = counter + 1
 			else
 				table.insert(tmp_keys, k)
@@ -673,7 +669,7 @@ function M.setup(opts)
 				combined_pairs[option][k] = v
 			elseif not table.contains(user_pairs, v) then
 				-- to store the table in a vim variable, all entries need a string key
-				combined_pairs[option]["surround_"..counter] = v
+				combined_pairs[option]["!surround_"..counter] = v
 				counter = counter + 1
 			end
 		end
@@ -704,9 +700,7 @@ function M.setup(opts)
 	set_default("quotes", { "'", '"' })
 	set_default("brackets", { "(", "{", "[" })
 	set_default("load_keymaps", true)
-	if vim.g.surround_load_keymaps then
-		M.set_keymaps()
-	end
+	M.set_keymaps()
 
 	-- namespace for highlighting
 	if not vim.g.surround_namespace then
