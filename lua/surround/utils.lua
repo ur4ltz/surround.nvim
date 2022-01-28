@@ -354,13 +354,14 @@ local function get_motion()
 		-- 27 is <ESC>
 		if char_raw == 27 then return nil end
 
-		if motion == "" and char_string == "0" then
+		if count .. motion == "" and char_string == "0" then
 			-- "0" motion (beginning of line) does not take a count
 			return "0"
 		end
 
 		if "0" <= char_string and char_string <= "9" and not count_complete then
 			count = count .. char_string
+			msg = msg .. char_string
 		else
 			count_complete = true
 			motion = motion .. char_string
