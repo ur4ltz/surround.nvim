@@ -175,9 +175,15 @@ function M.surround_delete(char)
 	local n = 0
 	if not char then
 		char = utils.get_surround_chars()
+		if char == nil then
+			return
+		end
 		if utils.has_value({ "2", "3", "4", "5", "6", "7", "8", "9" }, char) then
 			n = tonumber(char) - 1
 			char = utils.get_surround_chars()
+			if char == nil then
+				return
+			end
 		end
 	end
 
@@ -263,11 +269,21 @@ function M.surround_replace(
 	if not is_toggle then
 		if not char_1 then
 			char_1 = utils.get_surround_chars()
+			if char_1 == nil then
+				return
+			end
+
 			if utils.has_value({ "2", "3", "4", "5", "6", "7", "8", "9" }, char_1) then
 				n = tonumber(char_1) - 1
 				char_1 = utils.get_surround_chars()
+				if char_1 == nil then
+					return
+				end
 			end
 			char_2 = utils.get_surround_chars()
+			if char_2 == nil then
+				return
+			end
 		end
 	end
 

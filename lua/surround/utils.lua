@@ -260,7 +260,10 @@ local function get_surround_chars(surrounding)
 		char_nr, surrounding = get_char()
 
 		-- 27 is <ESC>
-		if char_nr == 27 then return nil end
+		if char_nr == 27 then
+			log("(Surround) Character: ❌", true)
+			return
+		end
 
 		log("(Surround) Character: " .. string.escape_dquotes(surrounding), true)
 	end
