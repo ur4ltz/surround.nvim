@@ -682,6 +682,7 @@ function M.setup(opts)
 	set_default("mappings_style", "sandwich")
 	set_default("map_insert_mode", true)
 	set_default("prefix", "s")
+	set_default("prompt", true)
 	set_default("load_autogroups", false)
 	if vim.g.surround_load_autogroups then
 		M.load_autogroups({

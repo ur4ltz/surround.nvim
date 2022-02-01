@@ -88,6 +88,7 @@ use {
 }
 ```
 - `context_offset`: number of lines to look for above and below the current line while searching for nestable pairs. `(default: 100)`
+- `prompt`: whether to print a prompt in the command window asking for input. `(default: true)`
 - `load_autogroups`: whether to load inbuilt autogroups or not. `(default: false)`
 - `mappings_style`: "surround" or "sandwich" `(default: sandwich)`
 - `load_keymaps`: whether to load inbuilt keymaps or not. `(default: true)`
