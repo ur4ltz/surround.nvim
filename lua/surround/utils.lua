@@ -1,3 +1,16 @@
+local function clear_output_buffer()
+	vim.api.nvim_call_function("inputsave", {})
+	vim.api.nvim_feedkeys(":","nx", true)
+	vim.api.nvim_call_function("inputrestore", {})
+end
+
+local function log(string, history)
+	if vim.g.surround_prompt then
+		clear_output_buffer()
+		vim.api.nvim_echo({{string, nil}}, history, {})
+	end
+end
+
 local function get(var, def)
 	if var == nil then
 		return def
@@ -230,12 +243,6 @@ local function has_value(tab, val)
 	return false
 end
 
-local function clear_output_buffer()
-	vim.api.nvim_call_function("inputsave", {})
-	vim.api.nvim_feedkeys(':','nx', true)
-	vim.api.nvim_call_function("inputrestore", {})
-end
-
 local function get_char()
 	local char_raw = vim.fn.getchar()
 	if type(char_raw) == "number" then
@@ -248,20 +255,17 @@ end
 
 local function get_surround_chars(surrounding)
 	if not surrounding then
-		vim.api.nvim_command(':echo "(Surround) Character: "')
+		log("(Surround) Character: ", false)
 		local char_nr
 		char_nr, surrounding = get_char()
 
 		-- 27 is <ESC>
-		if char_nr == 27 then return nil end
-
-		clear_output_buffer()
-		-- escape characters
-		if not string.isalnum(surrounding) then
-			vim.api.nvim_command(':echomsg "(Surround) Character: \\' .. surrounding .. '"')
-		else
-			vim.api.nvim_command(':echomsg "(Surround) Character: ' .. surrounding .. '"')
+		if char_nr == 27 then
+			log("(Surround) Character: ❌", true)
+			return
 		end
+
+		log("(Surround) Character: " .. string.escape_dquotes(surrounding), true)
 	end
 
 	for i,v in pairs(vim.g.surround_pairs_flat) do
@@ -347,20 +351,20 @@ local function get_motion()
 	local count_complete = false
 	local o_maps = omaps()
 	while true do
-		clear_output_buffer()
-		vim.api.nvim_command(":echo '(Surround) Motion: " .. msg .. "'")
+		log("(Surround) Motion: " .. msg, false)
 		local char_raw, char_string = get_char()
 
 		-- 27 is <ESC>
 		if char_raw == 27 then return nil end
 
-		if motion == "" and char_string == "0" then
+		if count .. motion == "" and char_string == "0" then
 			-- "0" motion (beginning of line) does not take a count
 			return "0"
 		end
 
 		if "0" <= char_string and char_string <= "9" and not count_complete then
 			count = count .. char_string
+			msg = msg .. char_string
 		else
 			count_complete = true
 			motion = motion .. char_string
@@ -398,15 +402,13 @@ local function get_motion()
 				and not table.contains(MOTIONS_ESC["incomplete"], last_char))
 				or custom_omap)
 			then
-				clear_output_buffer()
-				vim.api.nvim_command(':echomsg "(Surround) Motion: ' .. msg .. ' ❌ (invalid)"')
+				log("(Surround) Motion: " .. msg .. " ❌ (invalid)", true)
 				return nil
 			end
 		end
 		last_char = char_string
 	end
-	clear_output_buffer()
-	vim.api.nvim_command(':echomsg "(Surround) Motion: ' .. msg .. ' ✅"')
+	log("(Surround) Motion: " .. msg .. " ✅", true)
 	return count..motion
 end
 
@@ -432,6 +434,8 @@ local function highlight_motion_selection()
 end
 
 return {
+	clear_output_buffer = clear_output_buffer,
+	log = log,
 	tprint = tprint,
 	has_value = has_value,
 	user_input = user_input,
@@ -444,7 +448,6 @@ return {
 	get_char_pair = get_char_pair,
 	get_surround_chars = get_surround_chars,
 	get_char = get_char,
-	clear_output_buffer = clear_output_buffer,
 	load_keymaps = load_keymaps,
 	quote = quote,
 	get = get,
