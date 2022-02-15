@@ -35,13 +35,13 @@
 
 ## Installation
 
-1. vim-plug: `Plug 'blackcauldron7/surround.nvim'` and Put this somewhere in your init.vim: `lua require"surround".setup{}`
-1. minPlug: `MinPlug blackcauldron7/surround.nvim` and Put this somewhere in your init.vim: `lua require"surround".setup{}`
+1. vim-plug: `Plug 'ur4ltz/surround.nvim'` and Put this somewhere in your init.vim: `lua require"surround".setup{}`
+1. minPlug: `MinPlug ur4ltz/surround.nvim` and Put this somewhere in your init.vim: `lua require"surround".setup{}`
 1. Packer.nvim
 
 ```lua
 use {
-  "blackCauldron7/surround.nvim",
+  "ur4ltz/surround.nvim",
   config = function()
     require"surround".setup {mappings_style = "sandwich"}
   end
@@ -52,7 +52,7 @@ OR
 
 ```lua
 use {
-  "blackCauldron7/surround.nvim",
+  "ur4ltz/surround.nvim",
   config = function()
     require"surround".setup {mappings_style = "surround"}
   end
