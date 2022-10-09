@@ -111,7 +111,7 @@ require"surround".setup {
   space_on_closing_char = false,
   pairs = {
     nestable = { b = { "(", ")" }, s = { "[", "]" }, B = { "{", "}" }, a = { "<", ">" } },
-    linear = { q = { "'", "'" }, t = { "`", "`" }, d = { '"', '"' }
+    linear = { q = { "'", "'" }, t = { "`", "`" }, d = { '"', '"' } }
   },
   prefix = "s"
 }
